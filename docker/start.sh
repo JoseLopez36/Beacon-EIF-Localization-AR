@@ -9,7 +9,11 @@ xhost +local:docker
 # Verificar si el contenedor ya está en ejecución
 if docker ps --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
     echo "El contenedor ya esta en ejecucion, abriendo un nuevo terminal"
-    docker exec -it $CONTAINER_NAME bash -c "source /opt/ros/humble/setup.bash; exec bash"
+
+    CMD="export CATKIN_WS=/home/user/shared_volume/Beacon-EIF-Localization-AR/ros2_ws && \
+        export PX4_ROOT=/home/user/shared_volume && /bin/bash"
+
+    docker exec --user user -it $CONTAINER_NAME bash -c "${CMD}"
 else
     echo "El contenedor no esta en ejecucion, iniciandolo"
 
@@ -17,7 +21,7 @@ else
 	export CATKIN_WS=/home/user/shared_volume/Beacon-EIF-Localization-AR/ros2_ws && \
 	export PX4_ROOT=/home/user/shared_volume && /bin/bash"
 
-	docker run -it \
+	docker run --rm -it \
         --network $NETWORK \
         -e LOCAL_USER_ID="$(id -u)" \
         --env="DISPLAY=$DISPLAY" \
@@ -29,7 +33,7 @@ else
         --volume="$XAUTH:$XAUTH" \
         -env="XAUTHORITY=$XAUTH" \
         --publish 14556:14556/udp \
-        --name=${CONTAINER_NAME} \
+        --name $CONTAINER_NAME \
         --privileged \
         $IMAGE_NAME \
         bash -c "${CMD}"
