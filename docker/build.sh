@@ -5,7 +5,8 @@ source "$SCRIPT_DIR/config.env"
 
 # Construir la imagen de Docker
 echo "Construyendo la imagen de Docker '$IMAGE_NAME'..."
-if docker build -t $IMAGE_NAME --file $SCRIPT_DIR/px4_ros2_humble/docker/Dockerfile_simulation-ubuntu22 .; then
+cd $SCRIPT_DIR/px4_ros2_humble/docker
+if docker build -t $IMAGE_NAME --file Dockerfile_simulation-ubuntu22 .; then
     echo "Imagen '$IMAGE_NAME' construida correctamente"
 else
     echo "Error al construir la imagen de Docker"
