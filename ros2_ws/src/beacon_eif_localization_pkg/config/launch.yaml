@@ -1,0 +1,6 @@
+# Node launch configuration
+# Set to [enable, log_level]
+# Enable: true launches the node, false does not
+# Log levels: debug, info, warn, error, fatal
+
+drone_control: [true, 'info']

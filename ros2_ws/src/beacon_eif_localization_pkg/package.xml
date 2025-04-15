@@ -9,6 +9,11 @@
 
   <depend>rclpy</depend>
 
+  <depend>beacon_eif_localization_msgs</depend>
+  <depend>px4_msgs</depend>
+  
+  <exec_depend>ros2launch</exec_depend>
+
   <export>
     <build_type>ament_python</build_type>
   </export>

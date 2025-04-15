@@ -1,0 +1,13 @@
+/**:
+  ros__parameters:
+    # Temporizadores:
+    state_update_rate: 5.0
+    position_update_rate: 10.0
+    # Parámetros de máquina de estados:
+    arm_timeout: 3.0
+    takeoff_timeout: 20.0
+    takeoff_altitude: 5.0
+    # Restricciones de velocidad:
+    horizontal_vel: 3.0
+    vertical_vel: 2.0
+    heading_vel: 1.0
