@@ -4,11 +4,11 @@ from ament_index_python.packages import get_package_share_directory
 import os
 import yaml
 
-
 def generate_launch_description():
     # Obtener las rutas a los archivos de configuración
     package_dir = get_package_share_directory('beacon_eif_localization_pkg')
     drone_control_path = os.path.join(package_dir, 'config', 'drone_control.yaml')
+    visualization_path = os.path.join(package_dir, 'config', 'visualization.yaml')
 
     # Cargar el archivo de configuración de los nodos
     launch_config_path = os.path.join(package_dir, 'config', 'launch.yaml')
@@ -19,6 +19,7 @@ def generate_launch_description():
     # Establecer valores predeterminados si no están presentes en la configuración
     nodes = {
         'drone_control': launch.get('drone_control', [True, 'info']),
+        'visualization': launch.get('visualization', [True, 'info']),
     }
 
     # Inicializar la descripción de la lanzamiento
@@ -34,6 +35,18 @@ def generate_launch_description():
                 output='screen',
                 arguments=['--ros-args', '--log-level', nodes['drone_control'][1]],
                 parameters=[drone_control_path]
+            )
+        )
+
+    if nodes['visualization'][0]:
+        ld.add_action(
+            Node(
+                package='beacon_eif_localization_pkg',
+                executable='visualization_node',
+                name='visualization_node',
+                output='screen',
+                arguments=['--ros-args', '--log-level', nodes['visualization'][1]],
+                parameters=[visualization_path]
             )
         )
         

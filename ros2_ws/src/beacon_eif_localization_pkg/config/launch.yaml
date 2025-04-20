@@ -4,3 +4,4 @@
 # Log levels: debug, info, warn, error, fatal
 
 drone_control: [true, 'info']
+visualization: [true, 'info']

@@ -1,0 +1,4 @@
+/**:
+  ros__parameters:
+    # Temporizadores:
+    visualization_update_rate: 20.0
