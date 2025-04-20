@@ -24,6 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
             'drone_control_node = beacon_eif_localization_pkg.drone_control_node:main',
+            'tf_manager_node = beacon_eif_localization_pkg.tf_manager_node:main',
             'visualization_node = beacon_eif_localization_pkg.visualization_node:main',
         ],
     },

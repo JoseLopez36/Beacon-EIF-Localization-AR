@@ -48,29 +48,23 @@ Visualization Manager:
     - Class: rviz_default_plugins/Axes
       Enabled: true
       Length: 3
-      Name: Map
+      Name: Global
       Radius: 0.30000001192092896
-      Reference Frame: <Fixed Frame>
+      Reference Frame: global
       Value: true
-    - Alpha: 1
-      Axes Length: 3
-      Axes Radius: 0.30000001192092896
-      Class: rviz_default_plugins/Pose
-      Color: 255; 25; 0
+    - Class: rviz_default_plugins/Axes
       Enabled: true
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
-      Name: Drone
-      Shaft Length: 1
-      Shaft Radius: 0.05000000074505806
-      Shape: Axes
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /visualization/vehicle_pose
+      Length: 3
+      Name: Local
+      Radius: 0.30000001192092896
+      Reference Frame: local
+      Value: true
+    - Class: rviz_default_plugins/Axes
+      Enabled: true
+      Length: 3
+      Name: Body
+      Radius: 0.30000001192092896
+      Reference Frame: body
       Value: true
     - Class: rviz_default_plugins/Marker
       Enabled: true
@@ -88,7 +82,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: map
+    Fixed Frame: global
     Frame Rate: 30
   Name: root
   Tools:
@@ -131,25 +125,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 88.05430603027344
+      Distance: 191.32098388671875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 10.879401206970215
-        Y: -9.504422187805176
-        Z: 10.818328857421875
-      Focal Shape Fixed Size: true
+        X: 0.14883901178836823
+        Y: 3.9900388717651367
+        Z: -2.926628589630127
+      Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.45539820194244385
+      Pitch: 0.5553984045982361
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.4603978395462036
+      Yaw: 1.3853976726531982
     Saved: ~
 Window Geometry:
   Displays:

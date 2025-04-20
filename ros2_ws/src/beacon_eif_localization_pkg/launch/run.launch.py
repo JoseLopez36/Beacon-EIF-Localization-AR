@@ -8,6 +8,7 @@ def generate_launch_description():
     # Obtener las rutas a los archivos de configuración
     package_dir = get_package_share_directory('beacon_eif_localization_pkg')
     drone_control_path = os.path.join(package_dir, 'config', 'drone_control.yaml')
+    tf_manager_path = os.path.join(package_dir, 'config', 'tf_manager.yaml')
     visualization_path = os.path.join(package_dir, 'config', 'visualization.yaml')
 
     # Cargar el archivo de configuración de los nodos
@@ -19,6 +20,7 @@ def generate_launch_description():
     # Establecer valores predeterminados si no están presentes en la configuración
     nodes = {
         'drone_control': launch.get('drone_control', [True, 'info']),
+        'tf_manager': launch.get('tf_manager', [True, 'info']),
         'visualization': launch.get('visualization', [True, 'info']),
     }
 
@@ -38,6 +40,20 @@ def generate_launch_description():
             )
         )
 
+    # Condicionalmente agregar el nodo TF Manager
+    if nodes['tf_manager'][0]:
+        ld.add_action(
+            Node(
+                package='beacon_eif_localization_pkg',
+                executable='tf_manager_node',
+                name='tf_manager_node',
+                output='screen',
+                arguments=['--ros-args', '--log-level', nodes['tf_manager'][1]],
+                parameters=[tf_manager_path]
+            )
+        )
+
+    # Condicionalmente agregar el nodo Visualization
     if nodes['visualization'][0]:
         ld.add_action(
             Node(

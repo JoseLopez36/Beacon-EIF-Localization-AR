@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 import rclpy
-import numpy as np
-import time
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 
