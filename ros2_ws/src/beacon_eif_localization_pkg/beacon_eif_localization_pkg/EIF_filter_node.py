@@ -4,6 +4,10 @@ import rclpy
 from rclpy.node import Node
 import numpy as np
 
+# Importar el modelos
+from EIF_drone_models import EIFDroneModel
+from EIF_noise_models import R_noise_model, Q_noise_model
+
 class EIFFilterNode(Node):
     def __init__(self):
         super().__init__('EIF_filter_node')
@@ -16,12 +20,12 @@ class EIFFilterNode(Node):
         self.mu                     # vector media del estado estimado
 
         # Modelo:
-        self.G
-        self.H
+        self.modelo = EIFDroneModel()
+        
 
         # Matrices de ruido:
-        self.Q                      # Ruido de proceso
-        self.R                      # Ruido de medición
+        self.Q = Q_noise_model()                     # Ruido de proceso
+        self.R = R_noise_model()                     # Ruido de medición
 
         # Variables de resultado de predicción
         self.mu_pred                
@@ -46,8 +50,9 @@ class EIFFilterNode(Node):
         self.mu = np.invert(self.omega) @ self.xi
         # Calculo prediciones de omega, xi y mu:
         self.omega_pred = np.invert( self.G @ np.invert(self.omega) @ np.transpose(self.G) + self.R )
-        self.xi_pred = self.omega_pred #@ g
         self.mu_pred = 0 #g(u, self.mu)
+        self.xi_pred = self.omega_pred #@ self.mu_pred
+        
 
         return
 
