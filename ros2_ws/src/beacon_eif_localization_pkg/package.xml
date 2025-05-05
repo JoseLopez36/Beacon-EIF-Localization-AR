@@ -9,6 +9,12 @@
 
   <depend>rclpy</depend>
 
+  <!-- Dependencias de tf2 -->
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+
+  <!-- Dependencias de mensajes custom -->
   <depend>beacon_eif_localization_msgs</depend>
   <depend>px4_msgs</depend>
   

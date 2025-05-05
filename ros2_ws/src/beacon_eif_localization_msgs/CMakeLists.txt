@@ -15,6 +15,8 @@ find_package(sensor_msgs REQUIRED)
 
 # Generate interfaces
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/BeaconMeasurement.msg"
+  "msg/BeaconMeasurementArray.msg"
   "msg/DroneSetpoint.msg"
   DEPENDENCIES std_msgs geometry_msgs sensor_msgs
 )
