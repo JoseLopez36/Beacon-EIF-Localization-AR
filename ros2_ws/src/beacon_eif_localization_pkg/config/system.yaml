@@ -6,20 +6,20 @@
       beacon_0:
         position: [0.0, 0.0, 0.0]
         noise_std: 0.15
-        frame_id: "map"
+        frame_id: "global"
       beacon_1:
         position: [50.0, 0.0, 0.0]
         noise_std: 0.15
-        frame_id: "map"
+        frame_id: "global"
       beacon_2:
         position: [0.0, 50.0, 0.0]
         noise_std: 0.15
-        frame_id: "map"
+        frame_id: "global"
       beacon_3:
         position: [-50.0, 0.0, 0.0]
         noise_std: 0.15
-        frame_id: "map"
+        frame_id: "global"
       beacon_4:
         position: [0.0, -50.0, 0.0]
         noise_std: 0.15
-        frame_id: "map"
+        frame_id: "global"
