@@ -3,16 +3,10 @@
 import rclpy
 import numpy as np
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
-from geometry_msgs.msg import PoseStamped
 from visualization_msgs.msg import Marker
 
 # Importar mensajes de beacon_eif_localization_msgs
 from beacon_eif_localization_msgs.msg import DroneSetpoint
-
-# Importar mensajes de PX4 (px4_msgs)
-from px4_msgs.msg import VehicleLocalPosition
-from px4_msgs.msg import VehicleAttitude
 
 class VisualizationNode(Node):
 
@@ -21,14 +15,6 @@ class VisualizationNode(Node):
 
         # Log
         self.get_logger().info("Iniciando nodo de visualizacion...")
-
-        # Declarar perfil de QoS
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=1
-        )
 
         # Crear suscriptores
         self.vehicle_setpoint_sub = self.create_subscription(DroneSetpoint, '/setpoint/vehicle_position', self.vehicle_setpoint_callback, 10)

@@ -2,15 +2,14 @@
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 
 import numpy as np
 
+# Importar mensajes de ROS2
+from nav_msgs.msg import Odometry
+
 # Importar mensajes de beacon_eif_localization_msgs
 from beacon_eif_localization_msgs.msg import BeaconMeasurement, BeaconMeasurementArray
-
-# Importar mensajes de PX4 (px4_msgs)
-from px4_msgs.msg import VehicleLocalPosition
 
 class Beacon:
     def __init__(self, id, position, noise_std):
@@ -37,16 +36,8 @@ class BeaconManagerNode(Node):
         # Log
         self.get_logger().info("Iniciando nodo de gestor de balizas...")
 
-        # Declarar perfil de QoS
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=1
-        )
-
         # Crear suscriptor de posición del drone (ground truth)
-        self.vehicle_position_sub = self.create_subscription(VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_position_callback, qos_profile)
+        self.odometry_sub = self.create_subscription(Odometry, '/ground_truth/vehicle_odom', self.odometry_callback, 10)
 
         # Crear publicador de medida de baliza
         self.beacon_measurements_pub = self.create_publisher(BeaconMeasurementArray, '/beacons/measurement_array', 10)
@@ -71,9 +62,9 @@ class BeaconManagerNode(Node):
         # Log
         self.get_logger().info("Nodo de gestor de balizas iniciado")
 
-    def vehicle_position_callback(self, msg):
+    def odometry_callback(self, msg):
         # Convertir coordenadas de NED a ENU
-        self.vehicle_position = [msg.x, -msg.y, -msg.z]
+        self.vehicle_position = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
 
     def update(self):
         # Verificar si se ha recibido la posición del vehículo

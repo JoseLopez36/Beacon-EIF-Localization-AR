@@ -4,15 +4,15 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 
-# Importar mensajes de beacon_eif_localization_msgs
-from beacon_eif_localization_msgs.msg import DroneSetpoint
-
 # Importar mensajes de PX4 (px4_msgs)
 from px4_msgs.msg import VehicleStatus
 from px4_msgs.msg import VehicleLocalPosition
 from px4_msgs.msg import OffboardControlMode
 from px4_msgs.msg import GotoSetpoint
 from px4_msgs.msg import VehicleCommand
+
+# Importar mensajes de beacon_eif_localization_msgs
+from beacon_eif_localization_msgs.msg import DroneSetpoint
 
 class DroneControlNode(Node):
 

@@ -81,5 +81,22 @@ def generate_launch_description():
                 parameters=[system_path, visualization_path]
             )
         )
+
+    # Añadir puentes a Gazebo
+    ld.add_action(
+        Node(
+            package='ros_gz_bridge',
+            executable='parameter_bridge',
+            name='bridge_node',
+            output='screen',
+            arguments=[
+                '/model/x500_mod_0/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+                # Añadir más puentes aquí
+            ],
+            remappings=[
+                ('/model/x500_mod_0/odometry', '/ground_truth/vehicle_odom')
+            ]
+        )
+    )
         
     return ld

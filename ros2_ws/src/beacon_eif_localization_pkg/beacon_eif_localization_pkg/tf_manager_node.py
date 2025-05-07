@@ -3,13 +3,11 @@
 import rclpy
 import numpy as np
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 from tf2_ros import TransformBroadcaster, StaticTransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 
-# Importar mensajes de PX4 (px4_msgs)
-from px4_msgs.msg import VehicleLocalPosition
-from px4_msgs.msg import VehicleAttitude
+# Importar mensajes de ROS2
+from nav_msgs.msg import Odometry
 
 class TFManagerNode(Node):
 
@@ -19,17 +17,8 @@ class TFManagerNode(Node):
         # Log
         self.get_logger().info("Iniciando nodo de gestion de transformaciones...")
 
-        # Declarar perfil de QoS
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=1
-        )
-
         # Crear suscriptores
-        self.position_sub = self.create_subscription(VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.position_callback, qos_profile)
-        self.attitude_sub = self.create_subscription(VehicleAttitude, '/fmu/out/vehicle_attitude', self.attitude_callback, qos_profile)
+        self.odometry_sub = self.create_subscription(Odometry, '/ground_truth/vehicle_odom', self.odometry_callback, 10)
 
         # Crear broadcast de transformaciones
         self.static_broadcaster = StaticTransformBroadcaster(self)
@@ -40,8 +29,7 @@ class TFManagerNode(Node):
         self.beacon_ids = self.declare_parameter('beacons.ids', ['']).value
 
         # Declarar variables
-        self.vehicle_position = np.array([0.0, 0.0, 0.0])
-        self.vehicle_attitude = np.array([1.0, 0.0, 0.0, 0.0])
+        self.vehicle_pose = None
         self.local_frame_initialized = False
 
         # Publicar marco global
@@ -59,13 +47,9 @@ class TFManagerNode(Node):
         # Log
         self.get_logger().info("Nodo de gestion de transformaciones iniciado")
 
-    def position_callback(self, msg):
+    def odometry_callback(self, msg):
         # Convertir coordenadas de NED a ENU
-        self.vehicle_position = [msg.x, -msg.y, -msg.z]
-
-    def attitude_callback(self, msg):
-        # Convertir coordenadas de NED a ENU
-        self.vehicle_attitude = [msg.q[0], msg.q[1], -msg.q[2], -msg.q[3]]
+        self.vehicle_pose = msg.pose.pose
 
     def update(self):
         # Publicar transformación del frame 'global' (origen) al frame 'local' (marco local del drone)
@@ -74,7 +58,7 @@ class TFManagerNode(Node):
             self.local_frame_initialized = True
 
         # Publicar transformación del frame 'local' (marco local del drone) al frame 'body' (cuerpo del drone)
-        if self.local_frame_initialized:
+        if self.local_frame_initialized and self.vehicle_pose is not None:
             self.publish_body_frame()
 
     def publish_global_frame(self):
@@ -159,15 +143,15 @@ class TFManagerNode(Node):
         t.child_frame_id = 'body'
         
         # Establecer posición relativa al origen (local)
-        t.transform.translation.x = float(self.vehicle_position[0])
-        t.transform.translation.y = float(self.vehicle_position[1])
-        t.transform.translation.z = float(self.vehicle_position[2])
+        t.transform.translation.x = float(self.vehicle_pose.position.x)
+        t.transform.translation.y = float(self.vehicle_pose.position.y)
+        t.transform.translation.z = float(self.vehicle_pose.position.z)
         
         # Establecer orientación
-        t.transform.rotation.w = float(self.vehicle_attitude[0])
-        t.transform.rotation.x = float(self.vehicle_attitude[1])
-        t.transform.rotation.y = float(self.vehicle_attitude[2])
-        t.transform.rotation.z = float(self.vehicle_attitude[3])
+        t.transform.rotation.w = float(self.vehicle_pose.orientation.w)
+        t.transform.rotation.x = float(self.vehicle_pose.orientation.x)
+        t.transform.rotation.y = float(self.vehicle_pose.orientation.y)
+        t.transform.rotation.z = float(self.vehicle_pose.orientation.z)
         
         # Publicar transformación
         self.tf_broadcaster.sendTransform(t)

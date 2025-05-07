@@ -4,6 +4,6 @@
 # Log levels: debug, info, warn, error, fatal
 
 beacon_manager: [true, 'info']
-drone_control: [true, 'error']
-tf_manager: [true, 'error']
-visualization: [true, 'error']
+drone_control: [true, 'info']
+tf_manager: [true, 'info']
+visualization: [true, 'info']
