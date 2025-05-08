@@ -8,7 +8,6 @@ endif()
 
 # Encontrar dependencias
 find_package(ament_cmake REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(gz-sim7 REQUIRED)
 find_package(gz-plugin2 REQUIRED)
@@ -23,25 +22,16 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
-# Generar interfaces de mensajes
-rosidl_generate_interfaces(${PROJECT_NAME}_msgs
-  "msg/Ranging.msg"
-  DEPENDENCIES std_msgs
-)
-
-# Hacer que los mensajes generados estén disponibles en tiempo de compilación
-rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME}_msgs "rosidl_typesupport_cpp")
-
 # Crear la biblioteca del plugin
-add_library(gz_uwb_beacon_plugin SHARED src/gz_uwb_beacon_plugin.cpp)
+add_library(${PROJECT_NAME} SHARED src/gz_uwb_beacon_plugin.cpp)
 
-target_include_directories(gz_uwb_beacon_plugin PUBLIC
+target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 
 # Dependencias
-ament_target_dependencies(gz_uwb_beacon_plugin
+ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   gz-sim7
   gz-plugin2
@@ -56,12 +46,9 @@ ament_target_dependencies(gz_uwb_beacon_plugin
   tf2_geometry_msgs
 )
 
-# Vincular con los mensajes generados
-target_link_libraries(gz_uwb_beacon_plugin "${cpp_typesupport_target}")
-
 # Instalar el plugin
 install(
-  TARGETS gz_uwb_beacon_plugin
+  TARGETS ${PROJECT_NAME}
   EXPORT ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -75,7 +62,7 @@ install(
 
 # Exportar dependencias
 ament_export_include_directories(include)
-ament_export_libraries(gz_uwb_beacon_plugin)
+ament_export_libraries(${PROJECT_NAME})
 ament_export_targets(${PROJECT_NAME})
 ament_export_dependencies(
   rclcpp
@@ -92,8 +79,5 @@ ament_export_dependencies(
   tf2_geometry_msgs
   rosidl_default_runtime
 )
-
-# Añadir las interfaces generadas a las exportaciones
-ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()

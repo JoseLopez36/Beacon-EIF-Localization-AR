@@ -7,6 +7,8 @@ namespace gz
 	{
 		// Inicializar el periodo de actualización
 		update_period_ = std::chrono::nanoseconds(0);
+		// Initialize ROS2 clock
+		ros_clock_ = rclcpp::Clock(RCL_SYSTEM_TIME);
 	}
 
 	void GzUwbBeaconPlugin::Configure(const sim::Entity& _entity, const std::shared_ptr<const sdf::Element>& _sdf,
@@ -56,8 +58,8 @@ namespace gz
 
 			for (const auto& link : links)
 			{
-				auto nameComp = _ecm.Component<sim::components::Name>(link);
-				if (nameComp && nameComp->Data() == tag_link)
+				auto name_comp = _ecm.Component<sim::components::Name>(link);
+				if (name_comp && name_comp->Data() == tag_link)
 				{
 					tag_link_entity_ = link;
 					break;
@@ -87,14 +89,14 @@ namespace gz
 			tag_z_offset_ = _sdf->Get<double>("tag_z_offset");
 		}
 
-		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: is running. Tag %d", tag_id_);
+		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Plugin is running. Tag ID: %d", tag_id_);
 		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: All parameters loaded");
 
 		last_update_time_ = std::chrono::steady_clock::time_point();
 
 		// Crear publicador de datos de ranging
 		std::string ranging_topic = "/sensors/uwb_beacon/ranging";
-		uwb_ranging_pub_ = node_->create_publisher<gz_uwb_beacon_plugin::msg::Ranging>(ranging_topic, 100);
+		uwb_ranging_pub_ = node_->create_publisher<std_msgs::msg::Float64>(ranging_topic, 100);
 		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Ranging Publishing in %s", ranging_topic.c_str());
 
 		// Crear publicador de datos de anchors
@@ -126,15 +128,7 @@ namespace gz
 		if (!use_parent_as_reference_)
 		{
 			auto tag_pose_comp = _ecm.Component<sim::components::Pose>(tag_link_entity_);
-			if (tag_pose_comp)
-			{
-				tag_pose = tag_pose_comp->Data();
-			}
-			else
-			{
-				RCLCPP_ERROR(node_->get_logger(), "UWB-Beacon-Plugin: Tag link pose component not found");
-				tag_pose = model_pose_;
-			}
+			tag_pose = tag_pose_comp->Data();
 		}
 		else
 		{
@@ -396,20 +390,20 @@ namespace gz
 
 					if (los_type != NLOS)
 					{
-						gz_uwb_beacon_plugin::msg::Ranging ranging_msg;
-						ranging_msg.beacon_id = bid;
-						ranging_msg.tag_id = tag_id_;
-						ranging_msg.range = ranging_value;
-						ranging_msg.rss = power_value;
-						ranging_msg.error_estimation = 0.00393973;
+						std_msgs::msg::Float64 ranging_msg;
+						// ranging_msg.beacon_id = bid;
+						// ranging_msg.tag_id = tag_id_;
+						ranging_msg.data = ranging_value;
+						// ranging_msg.rss = power_value;
+						// ranging_msg.error_estimation = 0.00393973;
 						uwb_ranging_pub_->publish(ranging_msg);
 					}
 				}
 
 				// Crear el marcador de la baliza
 				visualization_msgs::msg::Marker marker;
-				marker.header.frame_id = "world";
-				marker.header.stamp = rclcpp::Clock().now();
+				marker.header.frame_id = "map";
+				marker.header.stamp = ros_clock_.now();
 				marker.id = bid;
 				marker.type = visualization_msgs::msg::Marker::CYLINDER;
 				marker.action = visualization_msgs::msg::Marker::ADD;

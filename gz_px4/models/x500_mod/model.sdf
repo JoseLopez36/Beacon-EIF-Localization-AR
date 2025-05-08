@@ -84,7 +84,7 @@
     </plugin>
 
     <!-- UWB plugin -->
-    <plugin name='GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
+    <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>25</update_rate>
       <beacon_prefix>uwb_beacon_</beacon_prefix>
       <tag_link>tag_0</tag_link>
