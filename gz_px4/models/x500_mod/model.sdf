@@ -82,5 +82,31 @@
       <publish_visual_pose>false</publish_visual_pose>
       <publish_nested_model_pose>false</publish_nested_model_pose>
     </plugin>
+
+    <!-- UWB plugin -->
+    <plugin name='GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
+      <update_rate>25</update_rate>
+      <beacon_prefix>uwb_beacon_</beacon_prefix>
+      <tag_link>tag_0</tag_link>
+      <tag_id>0</tag_id>
+      <nlosSoftWallWidth>0.25</nlosSoftWallWidth>
+      <tag_z_offset>1.5</tag_z_offset>
+    </plugin>
+
+    <!-- UWB beacons -->
+    <model name="uwb_beacon_0">
+      <pose>5.0 2.0 0.0 0 0 0</pose>
+      <static>1</static>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.5</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
   </model>
 </sdf>
