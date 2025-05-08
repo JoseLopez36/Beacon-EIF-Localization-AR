@@ -9,6 +9,9 @@ namespace gz
 		update_period_ = std::chrono::nanoseconds(0);
 		// Initialize ROS2 clock
 		ros_clock_ = rclcpp::Clock(RCL_SYSTEM_TIME);
+		// Inicializar el generador de números aleatorios
+		std::random_device rd;
+		random_generator_ = std::default_random_engine(rd());
 	}
 
 	void GzUwbBeaconPlugin::Configure(const sim::Entity& _entity, const std::shared_ptr<const sdf::Element>& _sdf,
@@ -23,6 +26,16 @@ namespace gz
 		// Obtener entidades del mundo y modelo
 		world_entity_ = _ecm.EntityByComponents(sim::components::World());
 		model_entity_ = _entity;
+
+		// Verificar que las entidades son válidas
+		if (world_entity_ == sim::kNullEntity) {
+			RCLCPP_WARN(node_->get_logger(), "UWB-Beacon-Plugin: World entity not found!");
+		}
+
+		if (model_entity_ == sim::kNullEntity) {
+			RCLCPP_FATAL(node_->get_logger(), "UWB-Beacon-Plugin: Model entity is null!");
+			return;
+		}
 
 		// Obtener pose del modelo
 		auto model_pose_gz_comp = _ecm.Component<sim::components::Pose>(model_entity_);
@@ -203,6 +216,7 @@ namespace gz
 					// No hay obstáculo entre la baliza y el tag, se usa el modelo Line-Of-Sight
 					los_type = LOS;
 					distance_after_rebounds = distance;
+					RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: LOS. No obstacles between tag and anchor");
 				}
 				else
 				{
@@ -219,6 +233,7 @@ namespace gz
 						// Se usa el modelo Non-Line-Of-Sight - Soft
 						los_type = NLOS_S;
 						distance_after_rebounds = distance;
+						RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS_S. Wall width: %f", wall_width);
 					}
 					else
 					{
@@ -326,11 +341,13 @@ namespace gz
 							// Usamos el modelo Non-Line-Of-Sight - Hard con distancia = distance_nlos_hard
 							los_type = NLOS_H;
 							distance_after_rebounds = distance_nlos_hard;
+							RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS_H. Wall width: %f", wall_width);
 						}
 						else
 						{
 							// No podemos llegar a la baliza, no hay ranging
 							los_type = NLOS;
+							RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS. No way to reach the anchor");
 						}
 					}
 				}
@@ -396,7 +413,9 @@ namespace gz
 						ranging_msg.data = ranging_value;
 						// ranging_msg.rss = power_value;
 						// ranging_msg.error_estimation = 0.00393973;
-						uwb_ranging_pub_->publish(ranging_msg);
+						if (uwb_ranging_pub_) {
+							uwb_ranging_pub_->publish(ranging_msg);
+						}
 					}
 				}
 
@@ -418,6 +437,9 @@ namespace gz
 				marker.scale.y = 0.2;
 				marker.scale.z = 0.5;
 				marker.color.a = 1.0;
+				marker.color.r = 0.0;
+				marker.color.g = 0.0;
+				marker.color.b = 0.0;
 
 				// Colores de los marcadores según el tipo de Line-Of-Sight
 				if (los_type == LOS)
@@ -449,7 +471,9 @@ namespace gz
 			}
 		}
 
-		uwb_anchors_pub_->publish(marker_array);
+		if (uwb_anchors_pub_) {
+			uwb_anchors_pub_->publish(marker_array);
+		}
 	}
 
 	std::string GzUwbBeaconPlugin::getIntersection(sim::EntityComponentManager& _ecm, const math::Vector3d& point1, const math::Vector3d& point2, double& distance)
@@ -457,72 +481,42 @@ namespace gz
 		std::string obstacle_name = "";
 		distance = 0.0;
 
-		// Calculate direction and length
+		// Calcula dirección y longitud del rayo
 		math::Vector3d direction = point2 - point1;
 		double ray_length = direction.Length();
 
-		// Check if points are too close
+		// Comprobar si los puntos están demasiado cerca
 		if (ray_length < 1e-6)
 		{
 			return obstacle_name;
 		}
 
-		// Normalize direction
+		// Normalizar dirección
 		direction = direction / ray_length;
 
-		// Get all models with collision components
-		auto models = _ecm.EntitiesByComponents(sim::components::Model(),
-			sim::components::Collision());
+		// Obtener todos los modelos presentes en el mundo
+		auto models = _ecm.EntitiesByComponents(sim::components::Model());
 
+		// Calcular la distancia más corta al rayo
 		double closest_hit_distance = ray_length;
-
 		for (const auto& model : models)
 		{
 			auto name_comp = _ecm.Component<sim::components::Name>(model);
 			if (!name_comp)
 				continue;
 
-			// Skip beacons or other models we don't want to check
-			if (name_comp->Data().find(beacon_prefix_) == 0)
+			std::string model_name = name_comp->Data();
+
+			// Saltar balizas o otros modelos que no queremos comprobar
+			if (model_name.find(beacon_prefix_) == 0)
 				continue;
 
-			// Get model pose
-			auto model_pose_comp = _ecm.Component<sim::components::Pose>(model);
-			if (!model_pose_comp)
+			// Saltar el modelo que contiene el tag
+			if (model == model_entity_)
 				continue;
 
-			math::Pose3d model_pose = model_pose_comp->Data();
-
-			// Simplified collision check - treat all models as spheres with radius 1.0
-			// This is a rough approximation - in a real plugin we would use proper collision geometry
-			double radius = 1.0;
-
-			// Vector from ray origin to sphere center
-			math::Vector3d origin_to_center = model_pose.Pos() - point1;
-
-			// Project this vector onto the ray direction
-			double projection = origin_to_center.Dot(direction);
-
-			// If the projection is negative, the sphere is behind the ray origin
-			if (projection < 0)
-				continue;
-
-			// If the projection is greater than the ray length, the sphere is beyond the ray end
-			if (projection > ray_length)
-				continue;
-
-			// Find the closest point on the ray to the sphere center
-			math::Vector3d closest_point = point1 + direction * projection;
-
-			// Calculate the distance from the closest point to the sphere center
-			double closest_distance = (closest_point - model_pose.Pos()).Length();
-
-			// If this distance is less than the sphere radius, we have an intersection
-			if (closest_distance <= radius && projection < closest_hit_distance)
-			{
-				closest_hit_distance = projection;
-				obstacle_name = name_comp->Data();
-			}
+			// Obtener la intersección del rayo con el modelo
+			// Implementar intersección de rayo con el mesh del modelo
 		}
 
 		if (obstacle_name != "")
