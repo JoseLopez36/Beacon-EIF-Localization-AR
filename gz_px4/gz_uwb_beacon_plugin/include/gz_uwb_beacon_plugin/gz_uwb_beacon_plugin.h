@@ -14,6 +14,7 @@
 #include <gz/sim/components/Pose.hh>
 #include <gz/sim/components/ParentEntity.hh>
 #include <gz/sim/components/Collision.hh>
+#include <gz/physics/detail/GetBoundingBox.hh>
 #include <gz/common/Profiler.hh>
 #include <gz/math/Pose3.hh>
 #include <gz/sim/Util.hh>
@@ -79,7 +80,7 @@ namespace gz
         std::chrono::steady_clock::time_point last_update_time_;
 
         // Publicadores
-        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr uwb_ranging_pub_;
+        std::unordered_map<int, rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr> uwb_ranging_pubs_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr uwb_anchors_pub_;
 
         // Entidades de Gazebo

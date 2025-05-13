@@ -107,15 +107,13 @@ namespace gz
 
 		last_update_time_ = std::chrono::steady_clock::time_point();
 
-		// Crear publicador de datos de ranging
-		std::string ranging_topic = "/sensors/uwb_beacon/ranging";
-		uwb_ranging_pub_ = node_->create_publisher<std_msgs::msg::Float64>(ranging_topic, 100);
-		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Ranging Publishing in %s", ranging_topic.c_str());
-
 		// Crear publicador de datos de anchors
 		std::string anchors_topic = "/sensors/uwb_beacon/anchors";
 		uwb_anchors_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>(anchors_topic, 100);
 		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Anchors Position Publishing in %s", anchors_topic.c_str());
+
+		// Inicializar publicador de ranging
+		uwb_ranging_pubs_.clear();
 	}
 
 	void GzUwbBeaconPlugin::Reset(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm)
@@ -413,8 +411,17 @@ namespace gz
 						ranging_msg.data = ranging_value;
 						// ranging_msg.rss = power_value;
 						// ranging_msg.error_estimation = 0.00393973;
-						if (uwb_ranging_pub_) {
-							uwb_ranging_pub_->publish(ranging_msg);
+						if (uwb_ranging_pubs_.find(bid) != uwb_ranging_pubs_.end())
+						{
+							// Si el publicador para la baliza existe
+							uwb_ranging_pubs_[bid]->publish(ranging_msg);
+						}
+						else
+						{
+							// Si no existe, crear un nuevo publicador
+							std::string ranging_topic = "/sensors/" + name_comp->Data() + "/ranging";
+							uwb_ranging_pubs_[bid] = node_->create_publisher<std_msgs::msg::Float64>(ranging_topic, 100);
+							RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: New beacon found. Ranging Publishing in %s", ranging_topic.c_str());
 						}
 					}
 				}
@@ -516,7 +523,18 @@ namespace gz
 				continue;
 
 			// Obtener la intersección del rayo con el modelo
-			// Implementar intersección de rayo con el mesh del modelo
+			// Para ello, suponer que el modelo es una caja
+			// Obtener los límites del modelo
+			// auto model_comp = _ecm.Component<sim::components::Model>(model);
+			// if (!model_comp)
+			// 	continue;
+
+			// // Obtener el bounding box del modelo
+			// gz::physics::GetModelBoundingBox::Model bounding_box_class(model);
+			// auto bounding_box = bounding_box_class.GetAxisAlignedBoundingBox();
+
+			// Comprobar si el rayo intersecta con el bounding box
+
 		}
 
 		if (obstacle_name != "")
