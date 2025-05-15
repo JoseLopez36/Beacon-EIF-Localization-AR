@@ -53,39 +53,39 @@ namespace gz
 		tag_z_offset_ = 0;
 		max_db_distance_ = 14;
 		step_db_distance_ = 0.1;
-		use_parent_as_reference_ = false;
+		use_parent_as_reference_ = true;
 
 		if (_sdf->HasElement("beacon_prefix"))
 		{
 			beacon_prefix_ = _sdf->Get<std::string>("beacon_prefix");
 		}
 
-		if (_sdf->HasElement("tag_link"))
-		{
-			std::string tag_link = _sdf->Get<std::string>("tag_link");
+		// if (_sdf->HasElement("tag_link"))
+		// {
+		// 	std::string tag_link = _sdf->Get<std::string>("tag_link");
 
-			// Buscar el enlace por nombre
-			auto links = _ecm.EntitiesByComponents(
-				sim::components::Link(),
-				sim::components::ParentEntity(model_entity_));
+		// 	// Buscar el enlace por nombre
+		// 	auto links = _ecm.EntitiesByComponents(
+		// 		sim::components::Link(),
+		// 		sim::components::ParentEntity(model_entity_));
 
-			for (const auto& link : links)
-			{
-				auto name_comp = _ecm.Component<sim::components::Name>(link);
-				if (name_comp && name_comp->Data() == tag_link)
-				{
-					tag_link_entity_ = link;
-					break;
-				}
-			}
+		// 	for (const auto& link : links)
+		// 	{
+		// 		auto name_comp = _ecm.Component<sim::components::Name>(link);
+		// 		if (name_comp && name_comp->Data() == tag_link)
+		// 		{
+		// 			tag_link_entity_ = link;
+		// 			break;
+		// 		}
+		// 	}
 
-			RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Looking for tag link (%s)", tag_link.c_str());
-			if (tag_link_entity_ == sim::kNullEntity)
-			{
-				RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Tag link Is NULL. We use The Parent As Reference");
-				use_parent_as_reference_ = true;
-			}
-		}
+		// 	RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Looking for tag link (%s)", tag_link.c_str());
+		// 	if (tag_link_entity_ == sim::kNullEntity)
+		// 	{
+		// 		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: We use The Parent As Reference");
+		// 		use_parent_as_reference_ = true;
+		// 	}
+		// }
 
 		if (_sdf->HasElement("tag_id"))
 		{
@@ -139,6 +139,11 @@ namespace gz
 		if (!use_parent_as_reference_)
 		{
 			auto tag_pose_comp = _ecm.Component<sim::components::Pose>(tag_link_entity_);
+			// Check if tag_pose_comp is valid before accessing it
+			if (!tag_pose_comp) {
+				RCLCPP_ERROR(node_->get_logger(), "UWB-Beacon-Plugin: Tag pose component is null, cannot continue");
+				return;
+			}
 			tag_pose = tag_pose_comp->Data();
 		}
 		else
@@ -372,7 +377,12 @@ namespace gz
 						index_scenario = 1;
 					}
 
+					// Add bounds checking for array indices
 					int index_ranging_offset = (int)round(distance_after_rebounds / step_db_distance_);
+					if (index_ranging_offset < 0 || index_ranging_offset >= 141) {
+						RCLCPP_ERROR(node_->get_logger(), "UWB-Beacon-Plugin: index_ranging_offset out of bounds: %d", index_ranging_offset);
+						continue;
+					}
 
 					double distance_after_rebounds_with_offset = distance_after_rebounds;
 					if (los_type == LOS)
@@ -387,7 +397,15 @@ namespace gz
 					}
 
 					int index_ranging = (int)round(distance_after_rebounds_with_offset / step_db_distance_);
+					if (index_ranging < 0 || index_ranging >= 141) {
+						RCLCPP_ERROR(node_->get_logger(), "UWB-Beacon-Plugin: index_ranging out of bounds: %d", index_ranging);
+						continue;
+					}
 
+					if (index_scenario < 0 || index_scenario >= 3) {
+						RCLCPP_ERROR(node_->get_logger(), "UWB-Beacon-Plugin: index_scenario out of bounds: %d", index_scenario);
+						continue;
+					}
 
 					std::normal_distribution<double> distribution_ranging(
 						distance_after_rebounds_with_offset * 1000, ranging_std_[index_ranging][index_scenario]);
@@ -488,6 +506,8 @@ namespace gz
 		std::string obstacle_name = "";
 		distance = 0.0;
 
+		return obstacle_name;
+
 		// Calcula dirección y longitud del rayo
 		math::Vector3d direction = point2 - point1;
 		double ray_length = direction.Length();
@@ -514,7 +534,7 @@ namespace gz
 
 			std::string model_name = name_comp->Data();
 
-			// Saltar balizas o otros modelos que no queremos comprobar
+			// Saltar balizas u otros modelos que no queremos comprobar
 			if (model_name.find(beacon_prefix_) == 0)
 				continue;
 
