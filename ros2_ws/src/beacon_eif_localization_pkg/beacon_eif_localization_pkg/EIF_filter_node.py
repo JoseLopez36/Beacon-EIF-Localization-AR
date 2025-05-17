@@ -16,12 +16,14 @@ class EIFFilterNode(Node):
         self.get_logger().info("Iniciando nodo de filtro EIF...")
 
         # Subscriptores y publicadores
-        self.beacon_measurements_sub = self.create_publisher(BeaconMeasurementArray, '/beacons/measurement_array', 10)
+        self.predict_pub = self.create_publisher( 10)   #TODO
+
+        self.beacon_measurements_sub = self.create_subscriber(BeaconMeasurementArray, '/beacons/measurement_array',self.beacon_measurements_callback, 10)
 
         # Obtener parámetros del archivo de configuración
         update_rate = self.declare_parameter('update_rate', 100.0).value
-        vel_xy_max = self.declare_parameter('MPC_XY_VEL_ALL' , 10.0).value     # TODO: Estos parametros son de configuracion de PX4
-        vel_z_max = self.declare_parameter('MPC_Z_VEL_ALL ', 4.0).value
+        horizontal_vel = self.declare_parameter('horizontal_vel' , 10.0).value     # TODO: Estos parametros son de configuracion de PX4
+        vertical_vel = self.declare_parameter('vertical_vel ', 4.0).value
         self.beacons = []
         for beacon_id in self.beacon_ids:
             position = self.declare_parameter(f'beacons.{beacon_id}.position', [0.0, 0.0, 0.0]).value
@@ -33,15 +35,15 @@ class EIFFilterNode(Node):
 
         # Matrices de ruido:
         self.Q = Q_noise_model(vel_xy_max, vel_z_max, 1.0 / update_rate)                     # Ruido de proceso
-        self.R = R_noise_model(noise_std = self.beacons[2])                   # Ruido de medición
+        self.R = R_noise_model(noise_std = self.beacons[2])                                  # Ruido de medición
 
         # Variables para la creencia de la localizacion en forma canónica
-        self.omega = np.zeros([3,3])                # Matriz de información
+        self.omega = np.zeros([3,3])                         # Matriz de información
         self.xi    = np.array[[0],[0],[0]]                   # Vector de información 
         self.mu    = np.array[[0],[0],[0]]                   # vector media del estado estimado
 
         # Variables de resultado de predicción
-        self.omega_pred = np.zeros([3,3])                # Matriz de información
+        self.omega_pred = np.zeros([3,3])                         # Matriz de información
         self.xi_pred    = np.array[[0],[0],[0]]                   # Vector de información 
         self.mu_pred    = np.array[[0],[0],[0]]                   # vector media del estado estimado     
     
