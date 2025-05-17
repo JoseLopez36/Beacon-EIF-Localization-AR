@@ -219,7 +219,7 @@ namespace gz
 					// No hay obstáculo entre la baliza y el tag, se usa el modelo Line-Of-Sight
 					los_type = LOS;
 					distance_after_rebounds = distance;
-					RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: LOS. No obstacles between tag and anchor");
+					// RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: LOS. No obstacles between tag and anchor");
 				}
 				else
 				{
@@ -236,7 +236,7 @@ namespace gz
 						// Se usa el modelo Non-Line-Of-Sight - Soft
 						los_type = NLOS_S;
 						distance_after_rebounds = distance;
-						RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS_S. Wall width: %f", wall_width);
+						// RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS_S. Wall width: %f", wall_width);
 					}
 					else
 					{
@@ -344,13 +344,13 @@ namespace gz
 							// Usamos el modelo Non-Line-Of-Sight - Hard con distancia = distance_nlos_hard
 							los_type = NLOS_H;
 							distance_after_rebounds = distance_nlos_hard;
-							RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS_H. Wall width: %f", wall_width);
+							// RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS_H. Wall width: %f", wall_width);
 						}
 						else
 						{
 							// No podemos llegar a la baliza, no hay ranging
 							los_type = NLOS;
-							RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS. No way to reach the anchor");
+							// RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: NLOS. No way to reach the anchor");
 						}
 					}
 				}

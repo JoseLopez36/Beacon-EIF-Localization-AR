@@ -93,20 +93,5 @@
       <tag_z_offset>1.5</tag_z_offset>
     </plugin>
 
-    <!-- UWB beacons -->
-    <model name="uwb_beacon_0">
-      <pose>5.0 2.0 0.0 0 0 0</pose>
-      <static>1</static>
-      <link name="link">
-        <visual name="visual">
-          <geometry>
-            <box>
-              <size>0.1 0.1 0.5</size>
-            </box>
-          </geometry>
-        </visual>
-      </link>
-    </model>
-
   </model>
 </sdf>
