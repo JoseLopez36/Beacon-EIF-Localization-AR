@@ -504,15 +504,10 @@ namespace gz
 	std::string GzUwbBeaconPlugin::getIntersection(sim::EntityComponentManager& _ecm, const math::Vector3d& point1, const math::Vector3d& point2, double& distance)
 	{
 		std::string obstacle_name = "";
-		distance = 0.0;
-
-		return obstacle_name;
 
 		// Calcula dirección y longitud del rayo
 		math::Vector3d direction = point2 - point1;
 		double ray_length = direction.Length();
-
-		// Comprobar si los puntos están demasiado cerca
 		if (ray_length < 1e-6)
 		{
 			return obstacle_name;
@@ -521,48 +516,165 @@ namespace gz
 		// Normalizar dirección
 		direction = direction / ray_length;
 
+		// Distancia más corta al rayo
+		distance = ray_length;
+
 		// Obtener todos los modelos presentes en el mundo
 		auto models = _ecm.EntitiesByComponents(sim::components::Model());
 
-		// Calcular la distancia más corta al rayo
-		double closest_hit_distance = ray_length;
-		for (const auto& model : models)
+		// Iterar sobre todos los modelos
+		for (auto& model : models)
 		{
+			// Obtener el nombre del modelo
 			auto name_comp = _ecm.Component<sim::components::Name>(model);
 			if (!name_comp)
 				continue;
-
 			std::string model_name = name_comp->Data();
 
-			// Saltar balizas u otros modelos que no queremos comprobar
-			if (model_name.find(beacon_prefix_) == 0)
+			// Saltar ground plane
+			if (model_name.find("ground_plane") != std::string::npos)
 				continue;
 
-			// Saltar el modelo que contiene el tag
-			if (model == model_entity_)
+			// Saltar balizas
+			if (model_name.find(beacon_prefix_) == 0 || model == model_entity_)
 				continue;
 
-			// Obtener la intersección del rayo con el modelo
-			// Para ello, suponer que el modelo es una caja
-			// Obtener los límites del modelo
-			// auto model_comp = _ecm.Component<sim::components::Model>(model);
-			// if (!model_comp)
-			// 	continue;
+			// Obtener la caja del modelo
+			math::AxisAlignedBox model_box = getModelBox(_ecm, model);
 
-			// // Obtener el bounding box del modelo
-			// gz::physics::GetModelBoundingBox::Model bounding_box_class(model);
-			// auto bounding_box = bounding_box_class.GetAxisAlignedBoundingBox();
-
-			// Comprobar si el rayo intersecta con el bounding box
-
-		}
-
-		if (obstacle_name != "")
-		{
-			distance = closest_hit_distance;
+			// Comprobar si el rayo intersecta con la caja
+			auto [intersects, hit_distance, hit_point] = model_box.Intersect(point1, direction, 0.0, ray_length);
+			if (intersects && hit_distance < distance)
+			{
+				distance = hit_distance;
+				obstacle_name = model_name;
+			}
 		}
 
 		return obstacle_name;
+	}
+
+	math::AxisAlignedBox GzUwbBeaconPlugin::getModelBox(sim::EntityComponentManager& _ecm, sim::Entity& model)
+	{
+		math::AxisAlignedBox result;
+		bool first_box = true;
+
+		// Obtener la pose del modelo
+		auto model_pose_comp = _ecm.Component<sim::components::Pose>(model);
+		if (!model_pose_comp)
+			return result;
+
+		math::Pose3d model_pose = model_pose_comp->Data();
+
+		// Obtener todos los links del modelo
+		auto links = _ecm.ChildrenByComponents(model, sim::components::Link());
+		if (links.empty())
+			return result;
+
+		// Para cada link, obtener todas las colisiones
+		for (const auto& link : links)
+		{
+			// Obtener la pose del link relativa al modelo
+			auto link_pose_comp = _ecm.Component<sim::components::Pose>(link);
+			if (!link_pose_comp)
+				continue;
+
+			math::Pose3d link_pose_rel = link_pose_comp->Data();
+
+			// Calcular la pose absoluta del link en coordenadas del mundo
+			math::Pose3d link_pose_abs = model_pose * link_pose_rel;
+
+			// Obtener todas las colisiones para este link
+			auto collisions = _ecm.ChildrenByComponents(link, sim::components::Collision());
+			if (collisions.empty())
+				continue;
+
+			// Procesar cada colisión
+			for (const auto& collision : collisions)
+			{
+				// Obtener la pose de la colisión relativa al link
+				auto collision_pose_comp = _ecm.Component<sim::components::Pose>(collision);
+				math::Pose3d collision_pose_rel = collision_pose_comp ?
+					collision_pose_comp->Data() : math::Pose3d();
+
+				// Calcular la pose absoluta de la colisión en coordenadas del mundo
+				math::Pose3d collision_pose_abs = link_pose_abs * collision_pose_rel;
+
+				// Obtener la geometría de la colisión
+				auto geom_comp = _ecm.Component<sim::components::Geometry>(collision);
+				if (!geom_comp)
+					continue;
+
+				auto geom_data = geom_comp->Data();
+				if (geom_data.Type() == sdf::GeometryType::BOX)
+				{
+					// Obtener el tamaño de la caja
+					const sdf::Box* box_shape_sdf = geom_data.BoxShape();
+					if (!box_shape_sdf)
+						continue;
+
+					math::Vector3d box_size = box_shape_sdf->Size();
+
+					// Crear los vértices de la caja en coordenadas locales
+					std::vector<math::Vector3d> vertices;
+					vertices.reserve(8);
+					for (int i = 0; i < 8; ++i)
+					{
+						double x = ((i & 1) ? 0.5 : -0.5) * box_size.X();
+						double y = ((i & 2) ? 0.5 : -0.5) * box_size.Y();
+						double z = ((i & 4) ? 0.5 : -0.5) * box_size.Z();
+						vertices.push_back(math::Vector3d(x, y, z));
+					}
+
+					// Transformar vértices a coordenadas del mundo y expandir la caja
+					math::AxisAlignedBox box;
+					for (const auto& vertex : vertices)
+					{
+						// Transformar el vértice a coordenadas del mundo
+						math::Vector3d world_vertex = collision_pose_abs.Pos() +
+							collision_pose_abs.Rot().RotateVector(vertex);
+
+						// En el primer vértice de la primera caja, inicializar la caja
+						if (first_box && &vertex == &vertices.front())
+						{
+							box.Min() = world_vertex;
+							box.Max() = world_vertex;
+							first_box = false;
+						}
+						else
+						{
+							// Expandir la caja para incluir este vértice
+							box.Min().X() = std::min(box.Min().X(), world_vertex.X());
+							box.Min().Y() = std::min(box.Min().Y(), world_vertex.Y());
+							box.Min().Z() = std::min(box.Min().Z(), world_vertex.Z());
+
+							box.Max().X() = std::max(box.Max().X(), world_vertex.X());
+							box.Max().Y() = std::max(box.Max().Y(), world_vertex.Y());
+							box.Max().Z() = std::max(box.Max().Z(), world_vertex.Z());
+						}
+					}
+
+					// Combinar con la caja resultante
+					if (first_box)
+					{
+						result = box;
+						first_box = false;
+					}
+					else
+					{
+						result.Min().X() = std::min(result.Min().X(), box.Min().X());
+						result.Min().Y() = std::min(result.Min().Y(), box.Min().Y());
+						result.Min().Z() = std::min(result.Min().Z(), box.Min().Z());
+
+						result.Max().X() = std::max(result.Max().X(), box.Max().X());
+						result.Max().Y() = std::max(result.Max().Y(), box.Max().Y());
+						result.Max().Z() = std::max(result.Max().Z(), box.Max().Z());
+					}
+				}
+			}
+		}
+
+		return result;
 	}
 
 	// Registrar el plugin con Gazebo

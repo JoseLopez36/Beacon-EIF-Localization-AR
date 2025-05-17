@@ -1,10 +1,15 @@
 #pragma once
 
+// Standard
+#include <random>
+
 // ROS2
 #include <rclcpp/rclcpp.hpp>
 
 // Gazebo
+// Plugin
 #include <gz/plugin/Register.hh>
+// Sim
 #include <gz/sim/System.hh>
 #include <gz/sim/Model.hh>
 #include <gz/sim/components/World.hh>
@@ -14,11 +19,14 @@
 #include <gz/sim/components/Pose.hh>
 #include <gz/sim/components/ParentEntity.hh>
 #include <gz/sim/components/Collision.hh>
-#include <gz/physics/detail/GetBoundingBox.hh>
-#include <gz/common/Profiler.hh>
-#include <gz/math/Pose3.hh>
+#include <gz/sim/components/Geometry.hh>
 #include <gz/sim/Util.hh>
-#include <random>
+// Common
+#include <gz/common/Profiler.hh>
+// Math
+#include <gz/math/Pose3.hh>
+// SDF
+#include <sdf/Box.hh>
 
 // TF2
 #include <tf2/LinearMath/Transform.h>
@@ -69,6 +77,7 @@ namespace gz
         void Reset(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
         void PreUpdate(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
         std::string getIntersection(sim::EntityComponentManager& _ecm, const gz::math::Vector3d& point1, const gz::math::Vector3d& point2, double& distance);
+        gz::math::AxisAlignedBox getModelBox(sim::EntityComponentManager& _ecm, sim::Entity& model);
 
     private: // Componentes de Gazebo/ROS2
         // Nodo ROS2
