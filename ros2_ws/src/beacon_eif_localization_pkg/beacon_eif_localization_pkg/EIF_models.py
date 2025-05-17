@@ -36,7 +36,7 @@ def h_function_n(mu, pos_b):
 
 def H_jacobian_n(mu, pos_b):
     # Jacobiano de h de una sola baliza
-    # en total dimensiones: n x 3
+    # en total dimensiones: 1 x 3
     H = np.zeros((3, 1))
     for j in range(len(mu)):
         H[j] = (mu[j][0] - pos_b[j])/np.sqrt((mu[0][0] - pos_b[0])**2 + (mu[1][0] - pos_b[1])**2 + (mu[2][0] - pos_b[2])**2)
@@ -65,14 +65,14 @@ def R_noise_model(vel_xy_max, vel_z_max, dt):
     R = np.diag(sigmas)
     return R 
 
-def Q_noise_model(noise_std):
+def Q_noise_model_n(noise_std):
     """
-    Modelo de ruido de medición:
+    Modelo de ruido de medición para una baliza:
         Tamaño: n x n 
         Si se considera que el error de medición es un ruido gaussiano con varianza constante,
         que todas las mediciones son independientes entre sí y que todas las balizas 
         tienen la misma varianza del ruido de medición
     """
-    Q = np.diag([sigma**2 for sigma in noise_std])
-    
+    #Q = np.diag([sigma**2 for sigma in noise_std])
+    Q = np.array([[noise_std**2]])
     return Q

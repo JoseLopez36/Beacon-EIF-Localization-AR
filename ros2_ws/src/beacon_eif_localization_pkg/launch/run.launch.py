@@ -23,6 +23,7 @@ def generate_launch_description():
         'drone_control': launch.get('drone_control', [True, 'info']),
         'tf_manager': launch.get('tf_manager', [True, 'info']),
         'visualization': launch.get('visualization', [True, 'info']),
+        'EIF_filter': launch.get('EIF_filter', [True, 'info'])
     }
 
     # Inicializar la descripción de la lanzamiento
@@ -75,8 +76,9 @@ def generate_launch_description():
                 executable='EIF_filter_node',
                 name='EIF_filter_node',
                 output='screen',
-                arguments=['--ros-args', '--log-level', nodes['EIF_filter'][1]],
-                parameters=[EIF_filter_path]
+                arguments=['--ros-args', '--log-level', nodes['EIF_filter'][1],
+                            '--allow-undeclared-parameters'],
+                parameters=[EIF_filter_path, drone_control_path, beacon_manager_path]
             )
         )
 
