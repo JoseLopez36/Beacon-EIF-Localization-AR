@@ -89,7 +89,7 @@
       <beacon_prefix>uwb_beacon_</beacon_prefix>
       <tag_link>tag_0</tag_link>
       <tag_id>0</tag_id>
-      <nlosSoftWallWidth>0.25</nlosSoftWallWidth>
+      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
       <tag_z_offset>0.0</tag_z_offset>
     </plugin>
 

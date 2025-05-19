@@ -2,8 +2,8 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>gz_uwb_beacon_plugin</name>
-  <version>0.0.0</version>
-  <description>Plugin de Beacon UWB para Gazebo</description>
+  <version>1.0.0</version>
+  <description>Plugin Gz-UWB-Beacon para creación de balizas en Gazebo Garden</description>
   <maintainer email="josloprui6@alum.us.es">Angela Rider Jimenez / Jose Francisco Lopez Ruiz</maintainer>
   <license>TODO: License declaration</license>
 
@@ -19,6 +19,7 @@
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>visualization_msgs</depend>
+  <depend>gz_uwb_beacon_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_geometry_msgs</depend>

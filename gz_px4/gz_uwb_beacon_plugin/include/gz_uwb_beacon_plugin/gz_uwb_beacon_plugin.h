@@ -33,7 +33,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 // Mensajes de ROS2
-#include <std_msgs/msg/float64.hpp>
+#include <gz_uwb_beacon_msgs/msg/measurement.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 namespace gz
@@ -89,8 +89,8 @@ namespace gz
         std::chrono::steady_clock::time_point last_update_time_;
 
         // Publicadores
-        std::unordered_map<int, rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr> uwb_ranging_pubs_;
-        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr uwb_anchors_pub_;
+        std::unordered_map<int, rclcpp::Publisher<gz_uwb_beacon_msgs::msg::Measurement>::SharedPtr> measurement_pubs_;
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markers_pub_;
 
         // Entidades de Gazebo
         sim::Entity world_entity_;      // Entidad del mundo

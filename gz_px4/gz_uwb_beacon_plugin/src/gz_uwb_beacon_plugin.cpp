@@ -53,39 +53,12 @@ namespace gz
 			beacon_prefix_ = _sdf->Get<std::string>("beacon_prefix");
 		}
 
-		// if (_sdf->HasElement("tag_link"))
-		// {
-		// 	std::string tag_link = _sdf->Get<std::string>("tag_link");
-
-		// 	// Buscar el enlace por nombre
-		// 	auto links = _ecm.EntitiesByComponents(
-		// 		sim::components::Link(),
-		// 		sim::components::ParentEntity(model_entity_));
-
-		// 	for (const auto& link : links)
-		// 	{
-		// 		auto name_comp = _ecm.Component<sim::components::Name>(link);
-		// 		if (name_comp && name_comp->Data() == tag_link)
-		// 		{
-		// 			tag_link_entity_ = link;
-		// 			break;
-		// 		}
-		// 	}
-
-		// 	RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Looking for tag link (%s)", tag_link.c_str());
-		// 	if (tag_link_entity_ == sim::kNullEntity)
-		// 	{
-		// 		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: We use The Parent As Reference");
-		// 		use_parent_as_reference_ = true;
-		// 	}
-		// }
-
 		if (_sdf->HasElement("tag_id"))
 		{
 			tag_id_ = _sdf->Get<int>("tag_id");
 		}
 
-		if (_sdf->HasElement("nlosSoftWallWidth"))
+		if (_sdf->HasElement("nlos_soft_wall_width"))
 		{
 			nlos_soft_wall_width_ = _sdf->Get<double>("nlosSoftWallWidth");
 		}
@@ -100,13 +73,13 @@ namespace gz
 
 		last_update_time_ = std::chrono::steady_clock::time_point();
 
-		// Crear publicador de datos de anchors
-		std::string anchors_topic = "/sensors/uwb_beacon/anchors";
-		uwb_anchors_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>(anchors_topic, 100);
-		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Anchors Position Publishing in %s", anchors_topic.c_str());
+		// Inicializar publicadores de medidas
+		measurement_pubs_.clear();
 
-		// Inicializar publicador de ranging
-		uwb_ranging_pubs_.clear();
+		// Crear publicador de datos de marcadores
+		std::string markers_topic = "/uwb_beacon/markers";
+		markers_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>(markers_topic, 100);
+		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Anchors Position Publishing in %s", markers_topic.c_str());
 	}
 
 	void GzUwbBeaconPlugin::Reset(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm)
@@ -421,23 +394,24 @@ namespace gz
 
 					if (los_type != NLOS)
 					{
-						std_msgs::msg::Float64 ranging_msg;
-						// ranging_msg.beacon_id = bid;
-						// ranging_msg.tag_id = tag_id_;
-						ranging_msg.data = ranging_value;
-						// ranging_msg.rss = power_value;
-						// ranging_msg.error_estimation = 0.00393973;
-						if (uwb_ranging_pubs_.find(bid) != uwb_ranging_pubs_.end())
+						gz_uwb_beacon_msgs::msg::Measurement measurement_msg;
+						measurement_msg.header.stamp = ros_clock_.now();
+						measurement_msg.beacon_id = bid;
+						measurement_msg.tag_id = tag_id_;
+						measurement_msg.distance = ranging_value;
+						measurement_msg.rss = power_value;
+						measurement_msg.error_estimation = 0.00393973;
+						if (measurement_pubs_.find(bid) != measurement_pubs_.end())
 						{
 							// Si el publicador para la baliza existe
-							uwb_ranging_pubs_[bid]->publish(ranging_msg);
+							measurement_pubs_[bid]->publish(measurement_msg);
 						}
 						else
 						{
 							// Si no existe, crear un nuevo publicador
-							std::string ranging_topic = "/sensors/" + name_comp->Data() + "/ranging";
-							uwb_ranging_pubs_[bid] = node_->create_publisher<std_msgs::msg::Float64>(ranging_topic, 100);
-							RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: New beacon found. Ranging Publishing in %s", ranging_topic.c_str());
+							std::string measurement_topic = "/uwb_beacon/" + name_comp->Data() + "/measurement";
+							measurement_pubs_[bid] = node_->create_publisher<gz_uwb_beacon_msgs::msg::Measurement>(measurement_topic, 100);
+							RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: New beacon found. Ranging Publishing in %s", measurement_topic.c_str());
 						}
 					}
 				}
@@ -548,8 +522,8 @@ namespace gz
 			}
 		}
 
-		if (uwb_anchors_pub_) {
-			uwb_anchors_pub_->publish(marker_array);
+		if (markers_pub_) {
+			markers_pub_->publish(marker_array);
 		}
 	}
 
