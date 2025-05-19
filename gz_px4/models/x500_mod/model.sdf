@@ -90,7 +90,7 @@
       <tag_link>tag_0</tag_link>
       <tag_id>0</tag_id>
       <nlosSoftWallWidth>0.25</nlosSoftWallWidth>
-      <tag_z_offset>1.5</tag_z_offset>
+      <tag_z_offset>0.0</tag_z_offset>
     </plugin>
 
   </model>

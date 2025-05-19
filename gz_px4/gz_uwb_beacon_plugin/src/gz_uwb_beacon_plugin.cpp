@@ -37,13 +37,6 @@ namespace gz
 			return;
 		}
 
-		// Obtener pose del modelo
-		auto model_pose_gz_comp = _ecm.Component<sim::components::Pose>(model_entity_);
-		if (model_pose_gz_comp)
-			model_pose_ = model_pose_gz_comp->Data();
-		else
-			RCLCPP_FATAL(node_->get_logger(), "UWB-Beacon-Plugin: Error, model pose not found");
-
 		// Obtener parámetros del plugin
 		double update_rate = _sdf->Get<double>("update_rate");
 		update_period_ = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / update_rate));
@@ -148,7 +141,12 @@ namespace gz
 		}
 		else
 		{
-			tag_pose = model_pose_;
+			// Obtener pose del modelo
+			auto model_pose_gz_comp = _ecm.Component<sim::components::Pose>(model_entity_);
+			if (model_pose_gz_comp)
+				tag_pose = model_pose_gz_comp->Data();
+			else
+				RCLCPP_FATAL(node_->get_logger(), "UWB-Beacon-Plugin: Error, model pose not found");
 		}
 
 		// Ajustar la posición del tag en el eje Z
@@ -444,55 +442,109 @@ namespace gz
 					}
 				}
 
-				// Crear el marcador de la baliza
-				visualization_msgs::msg::Marker marker;
-				marker.header.frame_id = "map";
-				marker.header.stamp = ros_clock_.now();
-				marker.id = bid;
-				marker.type = visualization_msgs::msg::Marker::CYLINDER;
-				marker.action = visualization_msgs::msg::Marker::ADD;
-				marker.pose.position.x = beacon_pose.Pos().X();
-				marker.pose.position.y = beacon_pose.Pos().Y();
-				marker.pose.position.z = beacon_pose.Pos().Z();
-				marker.pose.orientation.x = beacon_pose.Rot().X();
-				marker.pose.orientation.y = beacon_pose.Rot().Y();
-				marker.pose.orientation.z = beacon_pose.Rot().Z();
-				marker.pose.orientation.w = beacon_pose.Rot().W();
-				marker.scale.x = 0.2;
-				marker.scale.y = 0.2;
-				marker.scale.z = 0.5;
-				marker.color.a = 1.0;
-				marker.color.r = 0.0;
-				marker.color.g = 0.0;
-				marker.color.b = 0.0;
+				// Marcador para el cuerpo de la baliza (cilindro central)
+				visualization_msgs::msg::Marker body_marker;
+				body_marker.header.frame_id = "map";
+				body_marker.header.stamp = ros_clock_.now();
+				body_marker.id = bid * 4;
+				body_marker.type = visualization_msgs::msg::Marker::CYLINDER;
+				body_marker.action = visualization_msgs::msg::Marker::ADD;
+				body_marker.pose.position.x = beacon_pose.Pos().X();
+				body_marker.pose.position.y = beacon_pose.Pos().Y();
+				body_marker.pose.position.z = beacon_pose.Pos().Z() - 0.25;
+				body_marker.pose.orientation.x = beacon_pose.Rot().X();
+				body_marker.pose.orientation.y = beacon_pose.Rot().Y();
+				body_marker.pose.orientation.z = beacon_pose.Rot().Z();
+				body_marker.pose.orientation.w = beacon_pose.Rot().W();
+				body_marker.scale.x = 0.25;
+				body_marker.scale.y = 0.25;
+				body_marker.scale.z = 0.5;
+				body_marker.color.a = 1.0;
+				body_marker.color.r = 0.0;
+				body_marker.color.g = 0.0;
+				body_marker.color.b = 1.0;
+				marker_array.markers.push_back(body_marker);
 
-				// Colores de los marcadores según el tipo de Line-Of-Sight
+				// Marcador para la base de la baliza (cilindro más grueso)
+				visualization_msgs::msg::Marker base_marker;
+				base_marker.header = body_marker.header;
+				base_marker.id = bid * 4 + 1;
+				base_marker.type = visualization_msgs::msg::Marker::CYLINDER;
+				base_marker.action = visualization_msgs::msg::Marker::ADD;
+				base_marker.pose = body_marker.pose;
+				base_marker.pose.position.z = beacon_pose.Pos().Z() - 0.5;
+				base_marker.scale.x = 0.4;
+				base_marker.scale.y = 0.4;
+				base_marker.scale.z = 0.2;
+				base_marker.color = body_marker.color;
+				marker_array.markers.push_back(base_marker);
+
+				// Marcador para la esfera superior (origen de la baliza)
+				visualization_msgs::msg::Marker sphere_marker;
+				sphere_marker.header = body_marker.header;
+				sphere_marker.id = bid * 4 + 2;
+				sphere_marker.type = visualization_msgs::msg::Marker::SPHERE;
+				sphere_marker.action = visualization_msgs::msg::Marker::ADD;
+				sphere_marker.pose = body_marker.pose;
+				sphere_marker.pose.position.z = beacon_pose.Pos().Z();
+				sphere_marker.scale.x = 0.4;
+				sphere_marker.scale.y = 0.4;
+				sphere_marker.scale.z = 0.4;
+				sphere_marker.color = body_marker.color;
+				marker_array.markers.push_back(sphere_marker);
+
+				// Marcador para la línea entre la baliza y el vehículo (LOS)
+				visualization_msgs::msg::Marker los_marker;
+				los_marker.header = body_marker.header;
+				los_marker.id = bid * 4 + 3;
+				los_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+				los_marker.action = visualization_msgs::msg::Marker::ADD;
+				los_marker.pose.orientation.w = 1.0;
+				los_marker.scale.x = 0.03;  // Grosor de la línea
+				los_marker.color.a = 1.0;
+
+				// Añadir los puntos de la línea
+				geometry_msgs::msg::Point p1, p2;
+				p1.x = beacon_pose.Pos().X();
+				p1.y = beacon_pose.Pos().Y();
+				p1.z = beacon_pose.Pos().Z();
+				p2.x = tag_pose.Pos().X();
+				p2.y = tag_pose.Pos().Y();
+				p2.z = tag_pose.Pos().Z();
+				los_marker.points.push_back(p1);
+				los_marker.points.push_back(p2);
+
+				// Colores de las líneas de visión según el tipo de Line-Of-Sight
 				if (los_type == LOS)
 				{
-					marker.color.r = 0.0;
-					marker.color.g = 0.6;
-					marker.color.b = 0.0;
+					// Verde
+					los_marker.color.r = 0.0;
+					los_marker.color.g = 1.0;
+					los_marker.color.b = 0.0;
 				}
 				else if (los_type == NLOS_S)
 				{
-					marker.color.r = 0.6;
-					marker.color.g = 0.6;
-					marker.color.b = 0.0;
+					// Amarillo
+					los_marker.color.r = 1.0;
+					los_marker.color.g = 1.0;
+					los_marker.color.b = 0.0;
 				}
 				else if (los_type == NLOS_H)
 				{
-					marker.color.r = 0.0;
-					marker.color.g = 0.0;
-					marker.color.b = 0.6;
+					// Naranja
+					los_marker.color.r = 1.0;
+					los_marker.color.g = 0.5;
+					los_marker.color.b = 0.0;
 				}
 				else if (los_type == NLOS)
 				{
-					marker.color.r = 0.6;
-					marker.color.g = 0.0;
-					marker.color.b = 0.0;
+					// Rojo
+					los_marker.color.r = 1.0;
+					los_marker.color.g = 0.0;
+					los_marker.color.b = 0.0;
 				}
 
-				marker_array.markers.push_back(marker);
+				marker_array.markers.push_back(los_marker);
 			}
 		}
 

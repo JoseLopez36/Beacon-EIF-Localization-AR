@@ -97,9 +97,6 @@ namespace gz
         sim::Entity model_entity_;      // Entidad del modelo
         sim::Entity tag_link_entity_;   // Entidad del tag
 
-        // Poses
-        math::Pose3d model_pose_;
-
     private: // Constantes
         const double ranging_std_[141][3] =
         {
