@@ -32,6 +32,9 @@
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
+// Eigen
+#include <Eigen/Dense>
+
 // Mensajes de ROS2
 #include <gz_uwb_beacon_msgs/msg/measurement.hpp>
 #include <gz_uwb_beacon_msgs/msg/eif_input.hpp>
@@ -55,6 +58,8 @@ namespace gz
             int id;
             // ID del tag asociado a la baliza
             int tag_id;
+            // Parámetros EIF
+            Eigen::Matrix3d R;
             // Pose de la baliza
             gz::math::Pose3d pose;
             // Medidas de la baliza
@@ -63,13 +68,13 @@ namespace gz
             double error_estimation;
             // Publicadores de baliza
             rclcpp::Publisher<gz_uwb_beacon_msgs::msg::Measurement>::SharedPtr measurement_pub;
-            rclcpp::Publisher<gz_uwb_beacon_msgs::msg::EIFInput>::SharedPtr eif_input_pub;
+            rclcpp::Subscription<gz_uwb_beacon_msgs::msg::EIFInput>::SharedPtr eif_input_sub;
             rclcpp::Publisher<gz_uwb_beacon_msgs::msg::EIFOutput>::SharedPtr eif_output_pub;
             // Otros parámetros
             std::string model_name;
             // Constructor
             Beacon() : id(), tag_id(), pose(), distance_measurement(), rss(), error_estimation(),
-                measurement_pub(), eif_input_pub(), eif_output_pub(), model_name()
+                measurement_pub(), eif_input_sub(), eif_output_pub(), model_name()
             {
             }
         };
@@ -102,6 +107,11 @@ namespace gz
             sim::EntityComponentManager& _ecm, sim::EventManager& _eventMgr) override;
         void Reset(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
         void PreUpdate(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
+        void eifInputCallback(int beacon_id, const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg);
+        Eigen::Matrix3d RNoiseModel(double vel_xy_max, double vel_z_max, double dt);
+        Eigen::Matrix<double, 1, 3> HJacobianN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
+        Eigen::Matrix3d QNoiseModelN(const Eigen::Matrix3d& R);
+        double hFunctionN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
         std::string getIntersection(sim::EntityComponentManager& _ecm, const gz::math::Vector3d& point1, const gz::math::Vector3d& point2, const std::vector<std::string>& models_to_avoid, double& distance);
         gz::math::AxisAlignedBox getModelBox(sim::EntityComponentManager& _ecm, sim::Entity& model);
 

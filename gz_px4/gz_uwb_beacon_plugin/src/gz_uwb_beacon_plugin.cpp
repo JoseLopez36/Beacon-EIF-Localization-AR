@@ -89,6 +89,9 @@ namespace gz
 				// Asignar ID del tag
 				beacon.tag_id = tag_id;
 
+				// Inicializar parámetros EIF
+				beacon.R = RNoiseModel(6.0, 5.0, 1.0 / update_rate);
+
 				// Obtener pose de la baliza
 				auto beacon_pose_comp = _ecm.Component<sim::components::Pose>(model_entity);
 				beacon.pose = beacon_pose_comp ? beacon_pose_comp->Data() : math::Pose3d();
@@ -106,9 +109,12 @@ namespace gz
 
 				// Crear publicador de EIF Input
 				std::string eif_input_topic = "/uwb_beacon/" + name_comp->Data() + "/eif_input";
-				beacon.eif_input_pub = node_->create_publisher<gz_uwb_beacon_msgs::msg::EIFInput>(
-					eif_input_topic, 10);
-				RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: EIF Input Publishing in %s", eif_input_topic.c_str());
+				beacon.eif_input_sub = node_->create_subscription<gz_uwb_beacon_msgs::msg::EIFInput>(
+					eif_input_topic, 10, [this, beacon_id = beacon.id](const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg)
+					{
+						this->eifInputCallback(beacon_id, msg);
+					});
+				RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: EIF Input Subscribing in %s", eif_input_topic.c_str());
 
 				// Crear publicador de EIF Output
 				std::string eif_output_topic = "/uwb_beacon/" + name_comp->Data() + "/eif_output";
@@ -558,6 +564,152 @@ namespace gz
 		}
 
 		markers_pub_->publish(marker_array);
+	}
+
+	void GzUwbBeaconPlugin::eifInputCallback(int beacon_id, const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg)
+	{
+		RCLCPP_DEBUG(node_->get_logger(), "UWB-Beacon-Plugin: EIF Input received for beacon %d", beacon_id);
+
+		// Obtener baliza
+		const auto& beacon = beacons_[beacon_id];
+
+		// Obtener datos relevantes
+		const auto& mu_msg = msg->mu;
+		const auto& mu_predicted_msg = msg->mu_predicted;
+		const float& z = beacon.distance_measurement;
+		const auto& R = beacon.R;
+		const auto& beacon_position_gz = beacon.pose.Pos();
+
+		// Convertir mensajes a Eigen
+		const auto mu = Eigen::Vector3d(mu_msg[0], mu_msg[1], mu_msg[2]);
+		const auto mu_predicted = Eigen::Vector3d(mu_predicted_msg[0], mu_predicted_msg[1], mu_predicted_msg[2]);
+		const auto beacon_position = Eigen::Vector3d(beacon_position_gz.X(), beacon_position_gz.Y(), beacon_position_gz.Z());
+
+		// Calcular matriz y vector de información parcial (asociado a esta baliza)
+		const Eigen::Matrix<double, 1, 3> H = HJacobianN(mu, beacon_position);
+		// Calcular ruido de medición estandar de cada baliza
+		const Eigen::Matrix3d Q = QNoiseModelN(R);
+		// Calcular innovación
+		const double y = z - hFunctionN(mu, beacon_position) + H * mu_predicted;
+		// Calcular matriz de información parcial
+		const Eigen::Matrix3d Q_inv = Q.inverse();
+		const Eigen::Matrix<double, 3, 1> H_trans = H.transpose();
+		const Eigen::Matrix3d omega = H_trans * Q_inv * H;
+		// Calcular vector de información parcial
+		const Eigen::Matrix3d xi = H_trans * Q_inv * y;
+
+		// Publicar EIF Output
+		gz_uwb_beacon_msgs::msg::EIFOutput output_msg;
+		output_msg.header.stamp = ros_clock_.now();
+		output_msg.beacon_id = beacon_id;
+		output_msg.tag_id = beacon.tag_id;
+		output_msg.omega[0] = omega(0, 0);
+		output_msg.omega[1] = omega(0, 1);
+		output_msg.omega[2] = omega(0, 2);
+		output_msg.omega[3] = omega(1, 0);
+		output_msg.omega[4] = omega(1, 1);
+		output_msg.omega[5] = omega(1, 2);
+		output_msg.omega[6] = omega(2, 0);
+		output_msg.omega[7] = omega(2, 1);
+		output_msg.omega[8] = omega(2, 2);
+		output_msg.xi[0] = xi(0, 0);
+		output_msg.xi[1] = xi(0, 1);
+		output_msg.xi[2] = xi(0, 2);
+		output_msg.xi[3] = xi(1, 0);
+		output_msg.xi[4] = xi(1, 1);
+		output_msg.xi[5] = xi(1, 2);
+		output_msg.xi[6] = xi(2, 0);
+		output_msg.xi[7] = xi(2, 1);
+		output_msg.xi[8] = xi(2, 2);
+		beacon.eif_output_pub->publish(output_msg);
+	}
+
+	Eigen::Matrix3d GzUwbBeaconPlugin::RNoiseModel(double vel_xy_max, double vel_z_max, double dt)
+	{
+		// Modelo de ruido de proceso:
+		// Tamaño: 3 x 3 
+		// El modelo consiste en posicion actual predecida coincide con posicion estimada en tiempo anterior
+		// se calcula la presicion del modelo considerando el error de prdicción mínimo ~0 (quieto) 
+		// y error máximo velocidad máxima * tiempo entre predicciones.
+		//
+		// Considerando una distribución gaussiana de ruido de proceso
+
+		// Errores mínimos (cuando está quieto)
+		double errors_min[3] = { 0.0, 0.0, 0.0 };
+
+		// Errores máximos (basados en velocidad máxima * tiempo)
+		double errors_max[3] = { vel_xy_max * dt, vel_xy_max * dt, vel_z_max * dt };
+
+		// Varianzas al cuadrado (dividiendo por 4 para obtener sigma)
+		double sigmas[3];
+		for (int i = 0; i < 3; i++) {
+			sigmas[i] = pow((errors_max[i] - errors_min[i]) / 4.0, 2);
+		}
+
+		// Matriz diagonal de covarianza del ruido de proceso
+		Eigen::Matrix3d R;
+		R.setIdentity();
+		R(0, 0) = sigmas[0];
+		R(1, 1) = sigmas[1];
+		R(2, 2) = sigmas[2];
+
+		return R;
+	}
+
+	Eigen::Matrix<double, 1, 3> GzUwbBeaconPlugin::HJacobianN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position)
+	{
+		// Jacobiano de h de una sola baliza
+		// en total dimensiones : 1 x 3
+		// Implementación del Jacobiano H para una baliza
+		Eigen::Matrix<double, 1, 3> H;
+		H.setZero();
+
+		// Calcular la distancia euclidiana entre la posición estimada y la baliza
+		double distance = sqrt(
+			pow(mu.x() - beacon_position.x(), 2) +
+			pow(mu.y() - beacon_position.y(), 2) +
+			pow(mu.z() - beacon_position.z(), 2)
+		);
+
+		// Evitar división por cero
+		if (distance < 1e-6) {
+			return H;
+		}
+
+		// Calcular cada componente del Jacobiano
+		H(0, 0) = (mu.x() - beacon_position.x()) / distance;
+		H(0, 1) = (mu.y() - beacon_position.y()) / distance;
+		H(0, 2) = (mu.z() - beacon_position.z()) / distance;
+
+		return H;
+	}
+
+	Eigen::Matrix3d GzUwbBeaconPlugin::QNoiseModelN(const Eigen::Matrix3d& R)
+	{
+		// Modelo de ruido de medición para una baliza :
+		// Tamaño: n x n
+		// Si se considera que el error de medición es un ruido gaussiano con varianza constante,
+		// que todas las mediciones son independientes entre sí y que todas las balizas
+		// tienen la misma varianza del ruido de medición
+		Eigen::Matrix3d Q = R * R;
+
+		return Q;
+	}
+
+	double GzUwbBeaconPlugin::hFunctionN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position)
+	{
+		// Función h para una sola baliza
+		// Calcula la distancia euclidiana entre la posición estimada (mu) y la posición de la baliza
+		double h = 0.0;
+
+		// Calcular la distancia euclidiana
+		h = sqrt(
+			pow(mu.x() - beacon_position.x(), 2) +
+			pow(mu.y() - beacon_position.y(), 2) +
+			pow(mu.z() - beacon_position.z(), 2)
+		);
+
+		return h;
 	}
 
 	std::string GzUwbBeaconPlugin::getIntersection(sim::EntityComponentManager& _ecm, const math::Vector3d& point1, const math::Vector3d& point2, const std::vector<std::string>& models_to_avoid, double& distance)

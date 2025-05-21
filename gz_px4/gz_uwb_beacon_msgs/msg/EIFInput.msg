@@ -1,2 +1,5 @@
-# Posición estimada del vehículo (mu)
-float32 vehicle_position
+# Posición estimada del vehículo
+float64[3] mu
+
+# Posición predicha del vehículo
+float64[3] mu_predicted
