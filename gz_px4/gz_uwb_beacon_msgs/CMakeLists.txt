@@ -15,8 +15,8 @@ find_package(geometry_msgs REQUIRED)
 # Generate interfaces
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Measurement.msg"
-  "msg/ExtInformationFilterInput.msg"
-  "msg/ExtInformationFilterOutput.msg"
+  "msg/EIFInput.msg"
+  "msg/EIFOutput.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

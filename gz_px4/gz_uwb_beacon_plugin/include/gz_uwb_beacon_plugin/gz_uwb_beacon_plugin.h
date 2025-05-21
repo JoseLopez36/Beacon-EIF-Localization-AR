@@ -34,6 +34,8 @@
 
 // Mensajes de ROS2
 #include <gz_uwb_beacon_msgs/msg/measurement.hpp>
+#include <gz_uwb_beacon_msgs/msg/eif_input.hpp>
+#include <gz_uwb_beacon_msgs/msg/eif_output.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 namespace gz
@@ -47,6 +49,30 @@ namespace gz
         public gz::sim::ISystemReset
     {
     public: // Tipos
+        struct Beacon
+        {
+            // ID de la baliza
+            int id;
+            // ID del tag asociado a la baliza
+            int tag_id;
+            // Pose de la baliza
+            gz::math::Pose3d pose;
+            // Medidas de la baliza
+            double distance_measurement;
+            double rss;
+            double error_estimation;
+            // Publicadores de baliza
+            rclcpp::Publisher<gz_uwb_beacon_msgs::msg::Measurement>::SharedPtr measurement_pub;
+            rclcpp::Publisher<gz_uwb_beacon_msgs::msg::EIFInput>::SharedPtr eif_input_pub;
+            rclcpp::Publisher<gz_uwb_beacon_msgs::msg::EIFOutput>::SharedPtr eif_output_pub;
+            // Otros parámetros
+            std::string model_name;
+            // Constructor
+            Beacon() : id(), tag_id(), pose(), distance_measurement(), rss(), error_estimation(),
+                measurement_pub(), eif_input_pub(), eif_output_pub(), model_name()
+            {
+            }
+        };
         enum LineOfSight
         {
             LOS,        // Line of Sight
@@ -56,15 +82,15 @@ namespace gz
         };
 
     public: // Parámetros
-        std::string beacon_prefix_;
         double tag_z_offset_;
         double nlos_soft_wall_width_;
         double max_db_distance_;
         double step_db_distance_;
         bool use_parent_as_reference_;
-        int tag_id_;
 
     public: // Datos
+        // Beacons
+        std::unordered_map<int, Beacon> beacons_;
         // Generador de números aleatorios
         std::default_random_engine random_generator_;
 
@@ -76,22 +102,18 @@ namespace gz
             sim::EntityComponentManager& _ecm, sim::EventManager& _eventMgr) override;
         void Reset(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
         void PreUpdate(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
-        std::string getIntersection(sim::EntityComponentManager& _ecm, const gz::math::Vector3d& point1, const gz::math::Vector3d& point2, double& distance);
+        std::string getIntersection(sim::EntityComponentManager& _ecm, const gz::math::Vector3d& point1, const gz::math::Vector3d& point2, const std::vector<std::string>& models_to_avoid, double& distance);
         gz::math::AxisAlignedBox getModelBox(sim::EntityComponentManager& _ecm, sim::Entity& model);
 
     private: // Componentes de Gazebo/ROS2
         // Nodo ROS2
         std::shared_ptr<rclcpp::Node> node_;
-
         // Temporizadores
         rclcpp::Clock ros_clock_;
         std::chrono::steady_clock::duration update_period_;
         std::chrono::steady_clock::time_point last_update_time_;
-
-        // Publicadores
-        std::unordered_map<int, rclcpp::Publisher<gz_uwb_beacon_msgs::msg::Measurement>::SharedPtr> measurement_pubs_;
+        // Publicador de marcadores
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markers_pub_;
-
         // Entidades de Gazebo
         sim::Entity world_entity_;      // Entidad del mundo
         sim::Entity model_entity_;      // Entidad del modelo
