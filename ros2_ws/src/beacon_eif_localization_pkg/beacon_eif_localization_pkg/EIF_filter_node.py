@@ -61,11 +61,11 @@ class EIFFilterNode(Node):
         self.last_measurements = [[beacon_id, None, None] for beacon_id in self.beacons_ids] # Lista de medidas de balizas [id, distancia, timestamp]
 
         # Subscriptores y publicadores
-        self.predict_pub = self.create_publisher(PoseStamped,"/Predicted_position", self.num_beacons)   
+        self.predict_pub = self.create_publisher(PoseStamped,"/predicted_position", self.num_beacons)   
 
         #if self.beacon_id != "":
         for beacon_id in self.beacons_ids:
-            self.create_subscription(Measurement, f'/Measurement/{beacon_id}', self.beacon_measurements_callback, 10)
+            self.create_subscription(Measurement, f'/measurement/{beacon_id}', self.beacon_measurements_callback, 10)
             
         # Temporizador para la frecuencia de actualización
         self.timer = self.create_timer(self.filter_update_rate, self.estimate_localization)
