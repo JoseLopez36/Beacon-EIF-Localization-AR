@@ -7,7 +7,7 @@ import numpy as np
 from threading import Lock
 
 # Importar el modelos
-from EIF_models import g_function, G_jacobian, h_function_n, H_jacobian_n,  R_noise_model, Q_noise_model_n
+from .EIF_models import g_function, G_jacobian, h_function_n, H_jacobian_n,  R_noise_model, Q_noise_model_n
 
 # Importar mensajes de beacon_eif_localization_msgs
 from beacon_eif_localization_msgs.msg import BeaconMeasurement
