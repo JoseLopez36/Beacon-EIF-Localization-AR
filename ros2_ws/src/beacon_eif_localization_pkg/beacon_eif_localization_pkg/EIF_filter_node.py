@@ -61,11 +61,11 @@ class EIFFilterNode(Node):
         self.last_measurements = [[beacon_id, None, None] for beacon_id in self.beacons_ids] # Lista de medidas de balizas [id, distancia, timestamp]
 
         # Subscriptores y publicadores
-        self.predict_pub = self.create_publisher(PoseStamped,"/Predicted_position", self.num_beacons)   
+        self.predict_pub = self.create_publisher(PoseStamped,"/predicted_position", 10)   
 
         #if self.beacon_id != "":
         for beacon_id in self.beacons_ids:
-            self.create_subscription(Measurement, f'/Measurement/{beacon_id}', self.beacon_measurements_callback, 10)
+            self.create_subscription(Measurement, f'/measurement/{beacon_id}', self.beacon_measurements_callback, 10)
             
         # Temporizador para la frecuencia de actualización
         self.timer = self.create_timer(self.filter_update_rate, self.estimate_localization)
@@ -86,8 +86,9 @@ class EIFFilterNode(Node):
 
     def estimate_localization(self):
         self.get_logger().info("Estimando localización...")
+        start = self.get_clock().now().nanoseconds 
         
-        self.predict()
+        predict_duration = self.get_execution_time(self.predict)
 
         now = self.get_clock().now().nanoseconds        # Mismo tipo de timestamp que el mensaje de la baliza
         with self.lock:
@@ -96,10 +97,15 @@ class EIFFilterNode(Node):
         if len(z) == 0:
             self.get_logger().warn("No hay medidas válidas disponibles, no es posible actualizar predicción")
             return self.mu, self.omega, self.xi
-        xi, omega = self.update(z)
+        
+        update_duration, xi, omega = self.get_execution_time(self.update,z)
+
+        end = self.get_clock().now().nanoseconds 
+        filter_duration = end - start
 
         self.publish_estimation(xi, omega) # Publicar estimación de localización
         
+
         return self.mu, self.omega, self.xi
 
     def predict(self):
@@ -150,6 +156,12 @@ class EIFFilterNode(Node):
 
         self.predict_pub.publish(pose_msg)
 
+    def get_execution_time(self,func, *args, **kwargs):
+        start = self.get_clock().now().nanoseconds  
+        result = func(*args, **kwargs)  # ejecutar la función con argumentos
+        end = self.get_clock().now().nanoseconds
+        duration = end - start  # ns, - int
+        return duration, result
 
 def main(args=None):
     rclpy.init(args=args)
