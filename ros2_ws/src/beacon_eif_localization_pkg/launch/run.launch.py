@@ -11,6 +11,7 @@ def generate_launch_description():
     drone_control_path = os.path.join(package_dir, 'config', 'drone_control.yaml')
     tf_manager_path = os.path.join(package_dir, 'config', 'tf_manager.yaml')
     visualization_path = os.path.join(package_dir, 'config', 'visualization.yaml')
+    EIF_filter_path = os.path.join(package_dir, 'config', 'EIF_filter.yaml')
 
     # Cargar el archivo de configuración de los nodos
     launch_config_path = os.path.join(package_dir, 'config', 'launch.yaml')
@@ -23,6 +24,7 @@ def generate_launch_description():
         'drone_control': launch.get('drone_control', [True, 'info']),
         'tf_manager': launch.get('tf_manager', [True, 'info']),
         'visualization': launch.get('visualization', [True, 'info']),
+        'EIF_filter': launch.get('EIF_filter', [True, 'info'])
     }
 
     # Inicializar la descripción de la lanzamiento
@@ -83,5 +85,19 @@ def generate_launch_description():
             ]
         )
     )
-        
+
+    # Condicionalmente agregar el nodo EIF Filter
+    if nodes['EIF_filter'][0]:
+        ld.add_action(
+            Node(
+                package='beacon_eif_localization_pkg',
+                executable='EIF_filter_node',
+                name='EIF_filter_node',
+                output='screen',
+                arguments=['--ros-args', '--log-level', nodes['EIF_filter'][1],
+                            '--allow-undeclared-parameters'],
+                parameters=[EIF_filter_path, drone_control_path, beacon_manager_path]
+            )
+        )
+
     return ld

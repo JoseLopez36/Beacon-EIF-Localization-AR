@@ -6,3 +6,4 @@
 drone_control: [true, 'info']
 tf_manager: [true, 'info']
 visualization: [true, 'info']
+EIF_filter: [true, 'info']
