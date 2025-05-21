@@ -92,11 +92,10 @@ def generate_launch_description():
             Node(
                 package='beacon_eif_localization_pkg',
                 executable='EIF_filter_node',
-                name='EIF_filter_node',
+                #name='EIF_filter_node',
                 output='screen',
-                arguments=['--ros-args', '--log-level', nodes['EIF_filter'][1],
-                            '--allow-undeclared-parameters'],
-                parameters=[EIF_filter_path, drone_control_path, beacon_manager_path]
+                arguments=['--ros-args', '--log-level', nodes['EIF_filter'][1]],
+                parameters=[system_path, EIF_filter_path, drone_control_path],
             )
         )
 
