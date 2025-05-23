@@ -41,6 +41,8 @@
 #include <gz_uwb_beacon_msgs/msg/eif_output.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
+// #1 Crear grupo de callbacks mutually exclusive 
+
 namespace gz
 {
 
@@ -52,6 +54,15 @@ namespace gz
         public gz::sim::ISystemReset
     {
     public: // Tipos
+        // Line-Of-Sight de la baliza con el tag del vehículo
+        enum LineOfSight
+        {
+            LOS,        // Line of Sight
+            NLOS,       // Non Line of Sight
+            NLOS_S,     // Non Line of Sight Soft
+            NLOS_H      // Non Line of Sight Hard
+        };
+        // Estructura de datos de baliza
         struct Beacon
         {
             // ID de la baliza
@@ -61,11 +72,14 @@ namespace gz
             // Parámetros EIF
             Eigen::Matrix3d R;
             // Pose de la baliza
-            gz::math::Pose3d pose;
+            gz::math::Pose3d beacon_pose;
+            // Pose del tag
+            gz::math::Pose3d tag_pose;
             // Medidas de la baliza
             double distance_measurement;
             double rss;
             double error_estimation;
+            LineOfSight los_type;
             // Publicadores de baliza
             rclcpp::Publisher<gz_uwb_beacon_msgs::msg::Measurement>::SharedPtr measurement_pub;
             rclcpp::Subscription<gz_uwb_beacon_msgs::msg::EIFInput>::SharedPtr eif_input_sub;
@@ -73,17 +87,10 @@ namespace gz
             // Otros parámetros
             std::string model_name;
             // Constructor
-            Beacon() : id(), tag_id(), pose(), distance_measurement(), rss(), error_estimation(),
-                measurement_pub(), eif_input_sub(), eif_output_pub(), model_name()
+            Beacon() : id(), tag_id(), beacon_pose(), tag_pose(), distance_measurement(), rss(), error_estimation(),
+                los_type(), measurement_pub(), eif_input_sub(), eif_output_pub(), model_name()
             {
             }
-        };
-        enum LineOfSight
-        {
-            LOS,        // Line of Sight
-            NLOS,       // Non Line of Sight
-            NLOS_S,     // Non Line of Sight Soft
-            NLOS_H      // Non Line of Sight Hard
         };
 
     public: // Parámetros
@@ -102,16 +109,35 @@ namespace gz
     public: // Constructor
         GzUwbBeaconPlugin();
 
-    public: // Métodos
+    public: // Métodos de llamada de Gazebo
         void Configure(const sim::Entity& _entity, const std::shared_ptr<const sdf::Element>& _sdf,
             sim::EntityComponentManager& _ecm, sim::EventManager& _eventMgr) override;
         void Reset(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
         void PreUpdate(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
+
+    private: // Métodos de actualización
+        void updateBeacon(const float& ranging_value, const float& power_value, const LineOfSight& los_type, const gz::math::Pose3d& tag_pose, Beacon& beacon);
+
+    private: // Métodos de publicación
+        void publishMeasurement(Beacon& beacon);
+        void publishMarkers(std::unordered_map<int, Beacon>& beacons);
+
+    private: // Callbacks
         void eifInputCallback(int beacon_id, const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg);
+
+    private: // Métodos para EIF
         Eigen::Matrix3d RNoiseModel(double vel_xy_max, double vel_z_max, double dt);
         Eigen::Matrix<double, 1, 3> HJacobianN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
         Eigen::Matrix3d QNoiseModelN(const Eigen::Matrix3d& R);
         double hFunctionN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
+
+    private: // Métodos de lógica de balizas
+        double computeDistanceToTag(const gz::math::Pose3d& tag_pose, const Beacon& beacon);
+        LineOfSight computeLineOfSight(sim::EntityComponentManager& _ecm, const double& distance, const gz::math::Pose3d& tag_pose, const Beacon& beacon, double& distance_after_rebounds);
+        double computeRandomDistance(const double& ranging_mean, const double& ranging_std);
+        double computeRandomPower(const double& rss_mean, const double& rss_std);
+
+    private: // Métodos de cálculo de intersección
         std::string getIntersection(sim::EntityComponentManager& _ecm, const gz::math::Vector3d& point1, const gz::math::Vector3d& point2, const std::vector<std::string>& models_to_avoid, double& distance);
         gz::math::AxisAlignedBox getModelBox(sim::EntityComponentManager& _ecm, sim::Entity& model);
 
@@ -126,8 +152,7 @@ namespace gz
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markers_pub_;
         // Entidades de Gazebo
         sim::Entity world_entity_;      // Entidad del mundo
-        sim::Entity model_entity_;      // Entidad del modelo
-        sim::Entity tag_link_entity_;   // Entidad del tag
+        sim::Entity tag_entity_;        // Entidad del tag
 
     private: // Constantes
         const double ranging_std_[141][3] =
