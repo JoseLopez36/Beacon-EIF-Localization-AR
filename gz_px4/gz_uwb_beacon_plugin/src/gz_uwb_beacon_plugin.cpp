@@ -152,7 +152,11 @@ namespace gz
 		last_update_time_ = current_time;
 
 		// Copiar baliza bajo lock
-		const Beacon beacon = beacon_;
+		Beacon beacon;
+		{
+			std::lock_guard<std::mutex> lock(beacon_mutex_);
+			beacon = beacon_;
+		}
 
 		// Obtener nueva pose del tag
 		auto tag_pose_comp = _ecm.Component<sim::components::Pose>(tag_entity_);
@@ -236,6 +240,9 @@ namespace gz
 
 	void GzUwbBeaconPlugin::updateBeacon(const float& ranging_value, const float& power_value, const LineOfSight& los_type, const gz::math::Pose3d& tag_pose, Beacon& beacon)
 	{
+		// Actualizar medida de la baliza bajo lock
+		std::lock_guard<std::mutex> lock(beacon_mutex_);
+
 		// Actualizar medida de la baliza
 		beacon.distance_measurement = ranging_value;
 		beacon.rss = power_value;
@@ -394,7 +401,11 @@ namespace gz
 	void GzUwbBeaconPlugin::eifInputCallback(const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg)
 	{
 		// Copiar baliza bajo lock
-		const Beacon beacon = beacon_;
+		Beacon beacon;
+		{
+			std::lock_guard<std::mutex> lock(beacon_mutex_);
+			beacon = beacon_;
+		}
 
 		// Obtener datos relevantes
 		const auto& mu_msg = msg->mu;

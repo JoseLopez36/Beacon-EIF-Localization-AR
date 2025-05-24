@@ -2,6 +2,7 @@
 
 // Standard
 #include <random>
+#include <mutex>
 
 // ROS2
 #include <rclcpp/rclcpp.hpp>
@@ -154,6 +155,8 @@ namespace gz
         // Entidades de Gazebo
         sim::Entity world_entity_;      // Entidad del mundo
         sim::Entity tag_entity_;        // Entidad del tag
+        // Mutex para proteger el acceso a beacon_
+        std::mutex beacon_mutex_;
 
     private: // Constantes
         const double ranging_std_[141][3] =
