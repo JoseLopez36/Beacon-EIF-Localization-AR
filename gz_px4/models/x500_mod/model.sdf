@@ -91,6 +91,7 @@
       <tag_id>0</tag_id>
       <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
       <tag_z_offset>0.0</tag_z_offset>
+      <reception_probability>0.8</reception_probability>
     </plugin>
 
   </model>

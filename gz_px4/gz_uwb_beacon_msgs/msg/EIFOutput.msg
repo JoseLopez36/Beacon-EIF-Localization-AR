@@ -8,4 +8,4 @@ int32 tag_id
 float64[9] omega
 
 # Vector de información parcial (asociado a la baliza)
-float64[9] xi
+float64[3] xi

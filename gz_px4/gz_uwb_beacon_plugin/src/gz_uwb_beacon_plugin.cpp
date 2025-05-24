@@ -38,6 +38,7 @@ namespace gz
 		nlos_soft_wall_width_ = 0.25;
 		max_db_distance_ = 14;
 		step_db_distance_ = 0.1;
+		reception_probability_ = 1.0;  // Por defecto, 100% de probabilidad de recepción
 		if (_sdf->HasElement("update_rate"))
 		{
 			update_rate = _sdf->Get<double>("update_rate");
@@ -57,6 +58,12 @@ namespace gz
 		if (_sdf->HasElement("nlos_soft_wall_width"))
 		{
 			nlos_soft_wall_width_ = _sdf->Get<double>("nlosSoftWallWidth");
+		}
+		if (_sdf->HasElement("reception_probability"))
+		{
+			reception_probability_ = _sdf->Get<double>("reception_probability");
+			// Asegurar que esté en el rango válido [0.0, 1.0]
+			reception_probability_ = std::max(0.0, std::min(1.0, reception_probability_));
 		}
 
 		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Plugin is running. Tag ID: %d", tag_id);
@@ -252,16 +259,32 @@ namespace gz
 
 	void GzUwbBeaconPlugin::publishMeasurement(Beacon& beacon)
 	{
-		gz_uwb_beacon_msgs::msg::Measurement msg;
-		msg.header.stamp = ros_clock_.now();
-		msg.beacon_id = beacon.id;
-		msg.tag_id = beacon.tag_id;
-		msg.distance = beacon.distance_measurement;
-		msg.rss = beacon.rss;
-		msg.error_estimation = beacon.error_estimation;
+		// Generar número aleatorio entre 0 y 1 para simular interferencias
+		std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+		double random_value = uniform_dist(random_generator_);
 
-		// Publicar el mensaje
-		beacon.measurement_pub->publish(msg);
+		// Solo publicar si el valor aleatorio es menor que la probabilidad de recepción
+		if (random_value <= reception_probability_)
+		{
+			gz_uwb_beacon_msgs::msg::Measurement msg;
+			msg.header.stamp = ros_clock_.now();
+			msg.beacon_id = beacon.id;
+			msg.tag_id = beacon.tag_id;
+			msg.distance = beacon.distance_measurement;
+			msg.rss = beacon.rss;
+			msg.error_estimation = beacon.error_estimation;
+
+			// Publicar el mensaje
+			beacon.measurement_pub->publish(msg);
+
+			RCLCPP_DEBUG(node_->get_logger(), "UWB-Beacon-Plugin: Measurement published for beacon %d (probability: %.3f)",
+				beacon.id, random_value);
+		}
+		else
+		{
+			RCLCPP_DEBUG(node_->get_logger(), "UWB-Beacon-Plugin: Measurement dropped for beacon %d due to interference (probability: %.3f)",
+				beacon.id, random_value);
+		}
 	}
 
 	void GzUwbBeaconPlugin::publishMarkers(std::unordered_map<int, Beacon>& beacons)
@@ -406,11 +429,14 @@ namespace gz
 		// Calcular innovación
 		const double y = z - hFunctionN(mu, beacon_position) + H * mu_predicted;
 		// Calcular matriz de información parcial
-		const Eigen::Matrix3d Q_inv = Q.inverse();
-		const Eigen::Matrix<double, 3, 1> H_trans = H.transpose();
-		const Eigen::Matrix3d omega = H_trans * Q_inv * H;
-		// Calcular vector de información parcial
-		const Eigen::Matrix3d xi = H_trans * Q_inv * y;
+		// const Eigen::Matrix3d Q_inv = Q.inverse();
+		// const Eigen::Matrix3d omega = H.transpose() * Q_inv * H;
+		// Calcular vector de información parcial (TODO: Revisar tamaño de matrices)
+		// const Eigen::Vector3d xi = H.transpose() * Q_inv * y;
+
+		// Provisional:
+		const Eigen::Matrix3d omega = Eigen::Matrix3d::Zero();
+		const Eigen::Vector3d xi = Eigen::Vector3d::Zero();
 
 		// Publicar EIF Output
 		gz_uwb_beacon_msgs::msg::EIFOutput output_msg;
@@ -426,15 +452,9 @@ namespace gz
 		output_msg.omega[6] = omega(2, 0);
 		output_msg.omega[7] = omega(2, 1);
 		output_msg.omega[8] = omega(2, 2);
-		output_msg.xi[0] = xi(0, 0);
-		output_msg.xi[1] = xi(0, 1);
-		output_msg.xi[2] = xi(0, 2);
-		output_msg.xi[3] = xi(1, 0);
-		output_msg.xi[4] = xi(1, 1);
-		output_msg.xi[5] = xi(1, 2);
-		output_msg.xi[6] = xi(2, 0);
-		output_msg.xi[7] = xi(2, 1);
-		output_msg.xi[8] = xi(2, 2);
+		output_msg.xi[0] = xi(0);
+		output_msg.xi[1] = xi(1);
+		output_msg.xi[2] = xi(2);
 		beacon.eif_output_pub->publish(output_msg);
 	}
 
@@ -541,7 +561,10 @@ namespace gz
 		// Crear vector de modelos a evitar en el cálculo de intersecciones
 		// Evitaremos la propia baliza y el vehículo
 		std::vector<std::string> models_to_avoid;
-		models_to_avoid.push_back(beacon.model_name);
+		for (const auto& [_, beacon_to_avoid] : beacons_)
+		{
+			models_to_avoid.push_back(beacon_to_avoid.model_name);
+		}
 		models_to_avoid.push_back(_ecm.Component<sim::components::Name>(tag_entity_)->Data());
 
 		// Comprobar si hay un obstáculo entre la baliza y el tag

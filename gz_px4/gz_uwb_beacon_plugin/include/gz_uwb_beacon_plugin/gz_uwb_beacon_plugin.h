@@ -99,6 +99,7 @@ namespace gz
         double max_db_distance_;
         double step_db_distance_;
         bool use_parent_as_reference_;
+        double reception_probability_;
 
     public: // Datos
         // Beacons
