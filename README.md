@@ -70,13 +70,13 @@ make submodulesclean
 ### 6. Configurar PX4 Autopilot
 ```bash
 # Copiar modelos
-cp -r ~/shared_volume/Beacon-EIF-Localization-AR/gz_px4/models ~/shared_volume/PX4-Autopilot/Tools/simulation/gz/models
+cp -r ~/shared_volume/Beacon-EIF-Localization-AR/gz_px4/models ~/shared_volume/PX4-Autopilot/Tools/simulation/gz
 
 # Copiar mundos
-cp -r ~/shared_volume/Beacon-EIF-Localization-AR/gz_px4/worlds ~/shared_volume/PX4-Autopilot/Tools/simulation/gz/worlds
+cp -r ~/shared_volume/Beacon-EIF-Localization-AR/gz_px4/worlds ~/shared_volume/PX4-Autopilot/Tools/simulation/gz
 
 # Copiar configuración de aeronaves
-cp -r ~/shared_volume/Beacon-EIF-Localization-AR/gz_px4/airframes ~/shared_volume/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes
+cp -r ~/shared_volume/Beacon-EIF-Localization-AR/gz_px4/airframes ~/shared_volume/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix
 
 # Copiar CMakeLists de gz bridge
 cp ~/shared_volume/Beacon-EIF-Localization-AR/gz_px4/CMakeLists.txt ~/shared_volume/PX4-Autopilot/src/modules/simulation/gz_bridge
