@@ -17,12 +17,10 @@ namespace gz
 	void GzUwbBeaconPlugin::Configure(const sim::Entity& _entity, const std::shared_ptr<const sdf::Element>& _sdf,
 		sim::EntityComponentManager& _ecm, sim::EventManager& _eventMgr)
 	{
-		// Inicializar nodo ROS2
 		if (!rclcpp::ok())
 		{
 			rclcpp::init(0, nullptr);
 		}
-		node_ = std::make_shared<rclcpp::Node>("gz_uwb_beacon_plugin");
 
 		// Obtener entidad del mundo
 		world_entity_ = _ecm.EntityByComponents(sim::components::World());
@@ -32,32 +30,23 @@ namespace gz
 
 		// Obtener parámetros del plugin
 		double update_rate = 25.0;
-		std::string beacon_prefix = "uwb_beacon_";
+		beacon_name_ = "";
 		int tag_id = 0;
-		tag_z_offset_ = 0;
+		reception_probability_ = 1.0;
 		nlos_soft_wall_width_ = 0.25;
 		max_db_distance_ = 14;
 		step_db_distance_ = 0.1;
-		reception_probability_ = 1.0;  // Por defecto, 100% de probabilidad de recepción
 		if (_sdf->HasElement("update_rate"))
 		{
 			update_rate = _sdf->Get<double>("update_rate");
 		}
-		if (_sdf->HasElement("beacon_prefix"))
+		if (_sdf->HasElement("beacon_name"))
 		{
-			beacon_prefix = _sdf->Get<std::string>("beacon_prefix");
+			beacon_name_ = _sdf->Get<std::string>("beacon_name");
 		}
 		if (_sdf->HasElement("tag_id"))
 		{
 			tag_id = _sdf->Get<int>("tag_id");
-		}
-		if (_sdf->HasElement("tag_z_offset"))
-		{
-			tag_z_offset_ = _sdf->Get<double>("tag_z_offset");
-		}
-		if (_sdf->HasElement("nlos_soft_wall_width"))
-		{
-			nlos_soft_wall_width_ = _sdf->Get<double>("nlosSoftWallWidth");
 		}
 		if (_sdf->HasElement("reception_probability"))
 		{
@@ -65,81 +54,84 @@ namespace gz
 			// Asegurar que esté en el rango válido [0.0, 1.0]
 			reception_probability_ = std::max(0.0, std::min(1.0, reception_probability_));
 		}
+		if (_sdf->HasElement("nlos_soft_wall_width"))
+		{
+			nlos_soft_wall_width_ = _sdf->Get<double>("nlos_soft_wall_width");
+		}
 
-		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Plugin is running. Tag ID: %d", tag_id);
-		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: All parameters loaded");
+		// Inicializar nodo ROS2
+		node_ = std::make_shared<rclcpp::Node>("uwb_beacon_node_" + beacon_name_);
 
 		// Obtener tasa de actualización
 		update_period_ = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / update_rate));
 		last_update_time_ = std::chrono::steady_clock::time_point();
 
-		// Encontrar e inicializar balizas
-		beacons_.clear();
+		// Inicializar baliza
 		auto models = _ecm.EntitiesByComponents(sim::components::Model());
 		for (const auto& model_entity : models)
 		{
 			auto name_comp = _ecm.Component<sim::components::Name>(model_entity);
-			if (name_comp && name_comp->Data().find(beacon_prefix) == 0)
+			if (name_comp && name_comp->Data().find(beacon_name_) == 0)
 			{
-				// Baliza encontrada. Crear nueva baliza
-				Beacon beacon;
-
-				// Obtener ID de la baliza
-				beacon.id = std::stoi(name_comp->Data().substr(beacon_prefix.length()));
+				// Baliza encontrada
+				// Obtener ID de la baliza (número al final del nombre)
+				beacon_.id = std::stoi(beacon_name_.substr(beacon_name_.length() - 1));
 
 				// Asignar ID del tag
-				beacon.tag_id = tag_id;
+				beacon_.tag_id = tag_id;
 
 				// Inicializar parámetros EIF
-				beacon.R = RNoiseModel(6.0, 5.0, 1.0 / update_rate);
+				beacon_.R = noiseModel_R(6.0, 5.0, 1.0 / update_rate);
 
 				// Obtener pose de la baliza
 				auto beacon_pose_comp = _ecm.Component<sim::components::Pose>(model_entity);
-				beacon.beacon_pose = beacon_pose_comp ? beacon_pose_comp->Data() : math::Pose3d();
+				beacon_.beacon_pose = beacon_pose_comp ? beacon_pose_comp->Data() : math::Pose3d();
 
 				// Obtener pose del tag asociado
 				auto tag_pose_comp = _ecm.Component<sim::components::Pose>(tag_entity_);
-				beacon.tag_pose = tag_pose_comp ? tag_pose_comp->Data() : math::Pose3d();
+				beacon_.tag_pose = tag_pose_comp ? tag_pose_comp->Data() : math::Pose3d();
 
 				// Asignar medidas de la baliza
-				beacon.distance_measurement = 0.0;
-				beacon.rss = 0.0;
-				beacon.error_estimation = 0.0;
-				beacon.los_type = NLOS;
+				beacon_.distance_measurement = 0.0;
+				beacon_.rss = 0.0;
+				beacon_.error_estimation = 0.0;
+				beacon_.los_type = NLOS;
+
+				// Asignar nombre del modelo
+				beacon_.model_name = name_comp->Data();
 
 				// Crear publicador de medidas
-				std::string measurement_topic = "/uwb_beacon/" + name_comp->Data() + "/measurement";
-				beacon.measurement_pub = node_->create_publisher<gz_uwb_beacon_msgs::msg::Measurement>(
+				std::string measurement_topic = "/uwb_beacon/" + beacon_name_ + "/measurement";
+				beacon_.measurement_pub = node_->create_publisher<gz_uwb_beacon_msgs::msg::Measurement>(
 					measurement_topic, 10);
 				RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Measurement Publishing in %s", measurement_topic.c_str());
 
 				// Crear publicador de EIF Input
-				std::string eif_input_topic = "/uwb_beacon/" + name_comp->Data() + "/eif_input";
-				beacon.eif_input_sub = node_->create_subscription<gz_uwb_beacon_msgs::msg::EIFInput>(
-					eif_input_topic, 10, [this, beacon_id = beacon.id](const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg)
+				std::string eif_input_topic = "/uwb_beacon/" + beacon_name_ + "/eif_input";
+				beacon_.eif_input_sub = node_->create_subscription<gz_uwb_beacon_msgs::msg::EIFInput>(
+					eif_input_topic, 10, [this](const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg)
 					{
-						this->eifInputCallback(beacon_id, msg);
+						this->eifInputCallback(msg);
 					});
 				RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: EIF Input Subscribing in %s", eif_input_topic.c_str());
 
 				// Crear publicador de EIF Output
-				std::string eif_output_topic = "/uwb_beacon/" + name_comp->Data() + "/eif_output";
-				beacon.eif_output_pub = node_->create_publisher<gz_uwb_beacon_msgs::msg::EIFOutput>(
+				std::string eif_output_topic = "/uwb_beacon/" + beacon_name_ + "/eif_output";
+				beacon_.eif_output_pub = node_->create_publisher<gz_uwb_beacon_msgs::msg::EIFOutput>(
 					eif_output_topic, 10);
 				RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: EIF Output Publishing in %s", eif_output_topic.c_str());
 
-				// Asignar nombre del modelo
-				beacon.model_name = name_comp->Data();
-
-				// Añadir baliza a la lista
-				beacons_.insert({ beacon.id, beacon });
+				break;
 			}
 		}
 
 		// Crear publicador de datos de marcadores
-		std::string markers_topic = "/uwb_beacon/markers";
+		std::string markers_topic = "/uwb_beacon/" + beacon_name_ + "/markers";
 		markers_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>(markers_topic, 10);
 		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Anchors Position Publishing in %s", markers_topic.c_str());
+
+		// Log
+		RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: Plugin is running. Beacon ID: %d, Tag ID: %d", beacon_.id, tag_id);
 	}
 
 	void GzUwbBeaconPlugin::Reset(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm)
@@ -154,93 +146,92 @@ namespace gz
 		auto current_time = std::chrono::steady_clock::now();
 		auto elapsed = current_time - last_update_time_;
 		if (elapsed < update_period_)
+		{
 			return;
+		}
 		last_update_time_ = current_time;
+
+		// Copiar baliza bajo lock
+		const Beacon beacon = beacon_;
 
 		// Obtener nueva pose del tag
 		auto tag_pose_comp = _ecm.Component<sim::components::Pose>(tag_entity_);
 		math::Pose3d tag_pose = tag_pose_comp ? tag_pose_comp->Data() : math::Pose3d();
 
-		// Ajustar la posición del tag en el eje Z
-		math::Vector3d pos_corrected_Z(tag_pose.Pos().X(), tag_pose.Pos().Y(), tag_pose.Pos().Z() + tag_z_offset_);
-		tag_pose.Set(pos_corrected_Z, tag_pose.Rot());
+		// Calcular la distancia real entre la baliza y el tag
+		const double initial_ranging = computeDistanceToTag(tag_pose, beacon);
 
-		// Iterar sobre todas las balizas
-		for (auto& [beacon_id, beacon] : beacons_)
+		// Computar el Line-Of-Sight de la baliza junto a la distancia después de rebotes
+		double ranging = initial_ranging;
+		LineOfSight los_type = computeLineOfSight(_ecm, initial_ranging, tag_pose, beacon, ranging);
+
+		// Comprobar si la distancia supera la distancia máxima de la baliza
+		if ((los_type == LOS || los_type == NLOS_S || los_type == NLOS_H) && ranging > max_db_distance_)
 		{
-			// Calcular la distancia real entre la baliza y el tag
-			const double initial_ranging = computeDistanceToTag(tag_pose, beacon);
+			los_type = NLOS;
+		}
 
-			// Computar el Line-Of-Sight de la baliza junto a la distancia después de rebotes
-			double ranging = initial_ranging;
-			LineOfSight los_type = computeLineOfSight(_ecm, initial_ranging, tag_pose, beacon, ranging);
+		// Si hay algún Line-Of-Sight
+		double distance = HUGE_VAL;
+		double rss = 0.0;
+		if (los_type != NLOS)
+		{
+			// Ajustar índice de escenario según el LOS (0 -> LOS, 1 -> NLOS_H, 2 -> NLOS_S)
+			int index_scenario = 0;
 
-			// Comprobar si la distancia supera la distancia máxima de la baliza
-			if ((los_type == LOS || los_type == NLOS_S || los_type == NLOS_H) && ranging > max_db_distance_)
+			if (los_type == NLOS_S)
 			{
-				los_type = NLOS;
+				index_scenario = 2;
+			}
+			else if (los_type == NLOS_H)
+			{
+				index_scenario = 1;
 			}
 
-			// Si hay algún Line-Of-Sight
-			if (los_type != NLOS)
+			// Obtener índice de offset de distancia
+			int index_ranging_offset = (int)round(ranging / step_db_distance_);
+
+			// Añadir offset a la distancia
+			double ranging_with_offset = ranging;
+			if (los_type == LOS)
 			{
-				// Ajustar índice de escenario según el LOS (0 -> LOS, 1 -> NLOS_H, 2 -> NLOS_S)
-				int index_scenario = 0;
+				ranging_with_offset =
+					ranging + ranging_offset_[index_ranging_offset][0] / 1000.0;
+			}
+			else if (los_type == NLOS_S)
+			{
+				ranging_with_offset =
+					ranging + ranging_offset_[index_ranging_offset][1] / 1000.0;
+			}
 
-				if (los_type == NLOS_S)
-				{
-					index_scenario = 2;
-				}
-				else if (los_type == NLOS_H)
-				{
-					index_scenario = 1;
-				}
+			// Obtener índice de distancia
+			int index_ranging = (int)round(ranging_with_offset / step_db_distance_);
 
-				// Obtener índice de offset de distancia
-				int index_ranging_offset = (int)round(ranging / step_db_distance_);
+			// Computar la distancia según el índice de distancia y de escenario (en mm)
+			distance = computeRandomDistance(ranging_with_offset * 1000.0, ranging_std_[index_ranging][index_scenario]);
 
-				// Añadir offset a la distancia
-				double ranging_with_offset = ranging;
-				if (los_type == LOS)
-				{
-					ranging_with_offset =
-						ranging + ranging_offset_[index_ranging_offset][0] / 1000.0;
-				}
-				else if (los_type == NLOS_S)
-				{
-					ranging_with_offset =
-						ranging + ranging_offset_[index_ranging_offset][1] / 1000.0;
-				}
+			// Computar la potencia de la señal según el índice de distancia y de escenario
+			rss = computeRandomPower(rss_mean_[index_ranging][index_scenario], rss_std_[index_ranging][index_scenario]);
 
-				// Obtener índice de distancia
-				int index_ranging = (int)round(ranging_with_offset / step_db_distance_);
-
-				// Computar la distancia según el índice de distancia y de escenario (en mm)
-				double distance = computeRandomDistance(ranging_with_offset * 1000.0, ranging_std_[index_ranging][index_scenario]);
-
-				// Computar la potencia de la señal según el índice de distancia y de escenario
-				const double rss = computeRandomPower(rss_mean_[index_ranging][index_scenario], rss_std_[index_ranging][index_scenario]);
-
-				// Si la potencia es menor que el umbral, se considera NLOS
-				if (rss < min_power_[index_scenario])
-				{
-					los_type = NLOS;
-					distance = HUGE_VAL;
-				}
-
-				// Actualizar baliza
-				updateBeacon(distance, rss, los_type, tag_pose, beacon);
-
-				// Si la baliza es visible, publicar medida
-				if (los_type != NLOS)
-				{
-					publishMeasurement(beacon);
-				}
+			// Si la potencia es menor que el umbral, se considera NLOS
+			if (rss < min_power_[index_scenario])
+			{
+				los_type = NLOS;
+				distance = HUGE_VAL;
 			}
 		}
 
-		// Publicar marcadores con las balizas actualizadas
-		publishMarkers(beacons_);
+		// Si la baliza es visible, publicar medida
+		if (los_type != NLOS)
+		{
+			publishMeasurement(beacon);
+		}
+
+		// Publicar marcadores de la baliza
+		publishMarkers(beacon);
+
+		// Actualizar baliza bajo lock
+		updateBeacon(distance, rss, los_type, tag_pose, beacon_);
 	}
 
 	void GzUwbBeaconPlugin::updateBeacon(const float& ranging_value, const float& power_value, const LineOfSight& los_type, const gz::math::Pose3d& tag_pose, Beacon& beacon)
@@ -257,7 +248,7 @@ namespace gz
 		beacon.tag_pose = tag_pose;
 	}
 
-	void GzUwbBeaconPlugin::publishMeasurement(Beacon& beacon)
+	void GzUwbBeaconPlugin::publishMeasurement(const Beacon& beacon)
 	{
 		// Generar número aleatorio entre 0 y 1 para simular interferencias
 		std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
@@ -287,128 +278,123 @@ namespace gz
 		}
 	}
 
-	void GzUwbBeaconPlugin::publishMarkers(std::unordered_map<int, Beacon>& beacons)
+	void GzUwbBeaconPlugin::publishMarkers(const Beacon& beacon)
 	{
 		// Crear array de marcadores
 		visualization_msgs::msg::MarkerArray markers;
 
-		// Iterar sobre todas las balizas y rellenar cada mensaje de marcador
-		for (auto& [beacon_id, beacon] : beacons)
+		// Marcador para el cuerpo de la baliza (cilindro central)
+		visualization_msgs::msg::Marker body;
+		body.header.frame_id = "map";
+		body.header.stamp = ros_clock_.now();
+		body.id = beacon.id * 4;
+		body.type = visualization_msgs::msg::Marker::CYLINDER;
+		body.action = visualization_msgs::msg::Marker::ADD;
+		body.pose.position.x = beacon.beacon_pose.Pos().X();
+		body.pose.position.y = beacon.beacon_pose.Pos().Y();
+		body.pose.position.z = beacon.beacon_pose.Pos().Z() - 0.25;
+		body.pose.orientation.x = beacon.beacon_pose.Rot().X();
+		body.pose.orientation.y = beacon.beacon_pose.Rot().Y();
+		body.pose.orientation.z = beacon.beacon_pose.Rot().Z();
+		body.pose.orientation.w = beacon.beacon_pose.Rot().W();
+		body.scale.x = 0.25;
+		body.scale.y = 0.25;
+		body.scale.z = 0.5;
+		body.color.a = 1.0;
+		body.color.r = 0.0;
+		body.color.g = 0.0;
+		body.color.b = 1.0;
+		markers.markers.push_back(body);
+
+		// Marcador para la base de la baliza (cilindro más grueso)
+		visualization_msgs::msg::Marker base;
+		base.header = body.header;
+		base.id = beacon.id * 4 + 1;
+		base.type = visualization_msgs::msg::Marker::CYLINDER;
+		base.action = visualization_msgs::msg::Marker::ADD;
+		base.pose = body.pose;
+		base.pose.position.z = beacon.beacon_pose.Pos().Z() - 0.5;
+		base.scale.x = 0.4;
+		base.scale.y = 0.4;
+		base.scale.z = 0.2;
+		base.color = body.color;
+		markers.markers.push_back(base);
+
+		// Marcador para la esfera superior (origen de la baliza)
+		visualization_msgs::msg::Marker sphere;
+		sphere.header = body.header;
+		sphere.id = beacon.id * 4 + 2;
+		sphere.type = visualization_msgs::msg::Marker::SPHERE;
+		sphere.action = visualization_msgs::msg::Marker::ADD;
+		sphere.pose = body.pose;
+		sphere.pose.position.z = beacon.beacon_pose.Pos().Z();
+		sphere.scale.x = 0.4;
+		sphere.scale.y = 0.4;
+		sphere.scale.z = 0.4;
+		sphere.color = body.color;
+		markers.markers.push_back(sphere);
+
+		// Marcador para la línea entre la baliza y el vehículo (LOS)
+		visualization_msgs::msg::Marker los_line;
+		los_line.header = body.header;
+		los_line.id = beacon.id * 4 + 3;
+		los_line.type = visualization_msgs::msg::Marker::LINE_STRIP;
+		los_line.action = visualization_msgs::msg::Marker::ADD;
+		los_line.pose.orientation.w = 1.0;
+		los_line.scale.x = 0.03;  // Grosor de la línea
+		los_line.color.a = 1.0;
+
+		// Añadir los puntos de la línea
+		geometry_msgs::msg::Point p1, p2;
+		p1.x = beacon.beacon_pose.Pos().X();
+		p1.y = beacon.beacon_pose.Pos().Y();
+		p1.z = beacon.beacon_pose.Pos().Z();
+		p2.x = beacon.tag_pose.Pos().X();
+		p2.y = beacon.tag_pose.Pos().Y();
+		p2.z = beacon.tag_pose.Pos().Z();
+		los_line.points.push_back(p1);
+		los_line.points.push_back(p2);
+
+		// Colores de las líneas de visión según el tipo de Line-Of-Sight
+		if (beacon.los_type == LOS)
 		{
-			// Marcador para el cuerpo de la baliza (cilindro central)
-			visualization_msgs::msg::Marker body;
-			body.header.frame_id = "map";
-			body.header.stamp = ros_clock_.now();
-			body.id = beacon.id * 4;
-			body.type = visualization_msgs::msg::Marker::CYLINDER;
-			body.action = visualization_msgs::msg::Marker::ADD;
-			body.pose.position.x = beacon.beacon_pose.Pos().X();
-			body.pose.position.y = beacon.beacon_pose.Pos().Y();
-			body.pose.position.z = beacon.beacon_pose.Pos().Z() - 0.25;
-			body.pose.orientation.x = beacon.beacon_pose.Rot().X();
-			body.pose.orientation.y = beacon.beacon_pose.Rot().Y();
-			body.pose.orientation.z = beacon.beacon_pose.Rot().Z();
-			body.pose.orientation.w = beacon.beacon_pose.Rot().W();
-			body.scale.x = 0.25;
-			body.scale.y = 0.25;
-			body.scale.z = 0.5;
-			body.color.a = 1.0;
-			body.color.r = 0.0;
-			body.color.g = 0.0;
-			body.color.b = 1.0;
-			markers.markers.push_back(body);
-
-			// Marcador para la base de la baliza (cilindro más grueso)
-			visualization_msgs::msg::Marker base;
-			base.header = body.header;
-			base.id = beacon.id * 4 + 1;
-			base.type = visualization_msgs::msg::Marker::CYLINDER;
-			base.action = visualization_msgs::msg::Marker::ADD;
-			base.pose = body.pose;
-			base.pose.position.z = beacon.beacon_pose.Pos().Z() - 0.5;
-			base.scale.x = 0.4;
-			base.scale.y = 0.4;
-			base.scale.z = 0.2;
-			base.color = body.color;
-			markers.markers.push_back(base);
-
-			// Marcador para la esfera superior (origen de la baliza)
-			visualization_msgs::msg::Marker sphere;
-			sphere.header = body.header;
-			sphere.id = beacon.id * 4 + 2;
-			sphere.type = visualization_msgs::msg::Marker::SPHERE;
-			sphere.action = visualization_msgs::msg::Marker::ADD;
-			sphere.pose = body.pose;
-			sphere.pose.position.z = beacon.beacon_pose.Pos().Z();
-			sphere.scale.x = 0.4;
-			sphere.scale.y = 0.4;
-			sphere.scale.z = 0.4;
-			sphere.color = body.color;
-			markers.markers.push_back(sphere);
-
-			// Marcador para la línea entre la baliza y el vehículo (LOS)
-			visualization_msgs::msg::Marker los_line;
-			los_line.header = body.header;
-			los_line.id = beacon.id * 4 + 3;
-			los_line.type = visualization_msgs::msg::Marker::LINE_STRIP;
-			los_line.action = visualization_msgs::msg::Marker::ADD;
-			los_line.pose.orientation.w = 1.0;
-			los_line.scale.x = 0.03;  // Grosor de la línea
-			los_line.color.a = 1.0;
-
-			// Añadir los puntos de la línea
-			geometry_msgs::msg::Point p1, p2;
-			p1.x = beacon.beacon_pose.Pos().X();
-			p1.y = beacon.beacon_pose.Pos().Y();
-			p1.z = beacon.beacon_pose.Pos().Z();
-			p2.x = beacon.tag_pose.Pos().X();
-			p2.y = beacon.tag_pose.Pos().Y();
-			p2.z = beacon.tag_pose.Pos().Z();
-			los_line.points.push_back(p1);
-			los_line.points.push_back(p2);
-
-			// Colores de las líneas de visión según el tipo de Line-Of-Sight
-			if (beacon.los_type == LOS)
-			{
-				// Verde
-				los_line.color.r = 0.0;
-				los_line.color.g = 1.0;
-				los_line.color.b = 0.0;
-			}
-			else if (beacon.los_type == NLOS_S)
-			{
-				// Amarillo
-				los_line.color.r = 1.0;
-				los_line.color.g = 1.0;
-				los_line.color.b = 0.0;
-			}
-			else if (beacon.los_type == NLOS_H)
-			{
-				// Naranja
-				los_line.color.r = 1.0;
-				los_line.color.g = 0.5;
-				los_line.color.b = 0.0;
-			}
-			else if (beacon.los_type == NLOS)
-			{
-				// Rojo
-				los_line.color.r = 1.0;
-				los_line.color.g = 0.0;
-				los_line.color.b = 0.0;
-			}
-
-			markers.markers.push_back(los_line);
+			// Verde
+			los_line.color.r = 0.0;
+			los_line.color.g = 1.0;
+			los_line.color.b = 0.0;
+		}
+		else if (beacon.los_type == NLOS_S)
+		{
+			// Amarillo
+			los_line.color.r = 1.0;
+			los_line.color.g = 1.0;
+			los_line.color.b = 0.0;
+		}
+		else if (beacon.los_type == NLOS_H)
+		{
+			// Naranja
+			los_line.color.r = 1.0;
+			los_line.color.g = 0.5;
+			los_line.color.b = 0.0;
+		}
+		else if (beacon.los_type == NLOS)
+		{
+			// Rojo
+			los_line.color.r = 1.0;
+			los_line.color.g = 0.0;
+			los_line.color.b = 0.0;
 		}
 
+		markers.markers.push_back(los_line);
+
+		// Publicar marcadores
 		markers_pub_->publish(markers);
 	}
 
-	void GzUwbBeaconPlugin::eifInputCallback(int beacon_id, const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg)
+	void GzUwbBeaconPlugin::eifInputCallback(const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg)
 	{
-		RCLCPP_DEBUG(node_->get_logger(), "UWB-Beacon-Plugin: EIF Input received for beacon %d", beacon_id);
-
-		// Obtener baliza
-		const auto& beacon = beacons_[beacon_id];
+		// Copiar baliza bajo lock
+		const Beacon beacon = beacon_;
 
 		// Obtener datos relevantes
 		const auto& mu_msg = msg->mu;
@@ -423,11 +409,11 @@ namespace gz
 		const auto beacon_position = Eigen::Vector3d(beacon_position_gz.X(), beacon_position_gz.Y(), beacon_position_gz.Z());
 
 		// Calcular matriz y vector de información parcial (asociado a esta baliza)
-		const Eigen::Matrix<double, 1, 3> H = HJacobianN(mu, beacon_position);
+		const Eigen::Matrix<double, 1, 3> H = jacobian_H(mu, beacon_position);
 		// Calcular ruido de medición estandar de cada baliza
-		const Eigen::Matrix3d Q = QNoiseModelN(R);
+		const Eigen::Matrix3d Q = noiseModel_Q(R);
 		// Calcular innovación
-		const double y = z - hFunctionN(mu, beacon_position) + H * mu_predicted;
+		const double y = z - function_h(mu, beacon_position) + H * mu_predicted;
 		// Calcular matriz de información parcial
 		// const Eigen::Matrix3d Q_inv = Q.inverse();
 		// const Eigen::Matrix3d omega = H.transpose() * Q_inv * H;
@@ -441,7 +427,7 @@ namespace gz
 		// Publicar EIF Output
 		gz_uwb_beacon_msgs::msg::EIFOutput output_msg;
 		output_msg.header.stamp = ros_clock_.now();
-		output_msg.beacon_id = beacon_id;
+		output_msg.beacon_id = beacon.id;
 		output_msg.tag_id = beacon.tag_id;
 		output_msg.omega[0] = omega(0, 0);
 		output_msg.omega[1] = omega(0, 1);
@@ -458,7 +444,7 @@ namespace gz
 		beacon.eif_output_pub->publish(output_msg);
 	}
 
-	Eigen::Matrix3d GzUwbBeaconPlugin::RNoiseModel(double vel_xy_max, double vel_z_max, double dt)
+	Eigen::Matrix3d GzUwbBeaconPlugin::noiseModel_R(double vel_xy_max, double vel_z_max, double dt)
 	{
 		// Modelo de ruido de proceso:
 		// Tamaño: 3 x 3 
@@ -490,7 +476,7 @@ namespace gz
 		return R;
 	}
 
-	Eigen::Matrix<double, 1, 3> GzUwbBeaconPlugin::HJacobianN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position)
+	Eigen::Matrix<double, 1, 3> GzUwbBeaconPlugin::jacobian_H(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position)
 	{
 		// Jacobiano de h de una sola baliza
 		// en total dimensiones : 1 x 3
@@ -518,7 +504,7 @@ namespace gz
 		return H;
 	}
 
-	Eigen::Matrix3d GzUwbBeaconPlugin::QNoiseModelN(const Eigen::Matrix3d& R)
+	Eigen::Matrix3d GzUwbBeaconPlugin::noiseModel_Q(const Eigen::Matrix3d& R)
 	{
 		// Modelo de ruido de medición para una baliza :
 		// Tamaño: n x n
@@ -530,7 +516,7 @@ namespace gz
 		return Q;
 	}
 
-	double GzUwbBeaconPlugin::hFunctionN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position)
+	double GzUwbBeaconPlugin::function_h(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position)
 	{
 		// Función h para una sola baliza
 		// Calcula la distancia euclidiana entre la posición estimada (mu) y la posición de la baliza
@@ -561,10 +547,14 @@ namespace gz
 		// Crear vector de modelos a evitar en el cálculo de intersecciones
 		// Evitaremos la propia baliza y el vehículo
 		std::vector<std::string> models_to_avoid;
-		for (const auto& [_, beacon_to_avoid] : beacons_)
-		{
-			models_to_avoid.push_back(beacon_to_avoid.model_name);
-		}
+		models_to_avoid.push_back("uwb_beacon_0");
+		models_to_avoid.push_back("uwb_beacon_1");
+		models_to_avoid.push_back("uwb_beacon_2");
+		models_to_avoid.push_back("uwb_beacon_3");
+		models_to_avoid.push_back("uwb_beacon_4");
+		models_to_avoid.push_back("uwb_beacon_5");
+		models_to_avoid.push_back("uwb_beacon_6");
+		models_to_avoid.push_back("uwb_beacon_7");
 		models_to_avoid.push_back(_ecm.Component<sim::components::Name>(tag_entity_)->Data());
 
 		// Comprobar si hay un obstáculo entre la baliza y el tag

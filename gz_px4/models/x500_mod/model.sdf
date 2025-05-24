@@ -83,15 +83,34 @@
       <publish_nested_model_pose>false</publish_nested_model_pose>
     </plugin>
 
-    <!-- UWB plugin -->
+    <!-- UWB plugin instances -->
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>25</update_rate>
-      <beacon_prefix>uwb_beacon_</beacon_prefix>
-      <tag_link>tag_0</tag_link>
+      <beacon_name>uwb_beacon_0</beacon_name>
       <tag_id>0</tag_id>
-      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
-      <tag_z_offset>0.0</tag_z_offset>
       <reception_probability>0.8</reception_probability>
+      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
+    </plugin>
+    <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
+      <update_rate>25</update_rate>
+      <beacon_name>uwb_beacon_1</beacon_name>
+      <tag_id>0</tag_id>
+      <reception_probability>0.8</reception_probability>
+      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
+    </plugin>
+    <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
+      <update_rate>25</update_rate>
+      <beacon_name>uwb_beacon_2</beacon_name>
+      <tag_id>0</tag_id>
+      <reception_probability>0.8</reception_probability>
+      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
+    </plugin>
+    <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
+      <update_rate>25</update_rate>
+      <beacon_name>uwb_beacon_3</beacon_name>
+      <tag_id>0</tag_id>
+      <reception_probability>0.8</reception_probability>
+      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
     </plugin>
 
   </model>

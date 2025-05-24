@@ -80,30 +80,30 @@ namespace gz
             double rss;
             double error_estimation;
             LineOfSight los_type;
+            // Parámetros de Gazebo
+            std::string model_name;
             // Publicadores de baliza
             rclcpp::Publisher<gz_uwb_beacon_msgs::msg::Measurement>::SharedPtr measurement_pub;
             rclcpp::Subscription<gz_uwb_beacon_msgs::msg::EIFInput>::SharedPtr eif_input_sub;
             rclcpp::Publisher<gz_uwb_beacon_msgs::msg::EIFOutput>::SharedPtr eif_output_pub;
-            // Otros parámetros
-            std::string model_name;
+
             // Constructor
             Beacon() : id(), tag_id(), beacon_pose(), tag_pose(), distance_measurement(), rss(), error_estimation(),
-                los_type(), measurement_pub(), eif_input_sub(), eif_output_pub(), model_name()
+                los_type(), model_name(), measurement_pub(), eif_input_sub(), eif_output_pub()
             {
             }
         };
 
     public: // Parámetros
-        double tag_z_offset_;
+        std::string beacon_name_;
+        double reception_probability_;
         double nlos_soft_wall_width_;
         double max_db_distance_;
         double step_db_distance_;
-        bool use_parent_as_reference_;
-        double reception_probability_;
 
     public: // Datos
         // Beacons
-        std::unordered_map<int, Beacon> beacons_;
+        Beacon beacon_;
         // Generador de números aleatorios
         std::default_random_engine random_generator_;
 
@@ -120,17 +120,17 @@ namespace gz
         void updateBeacon(const float& ranging_value, const float& power_value, const LineOfSight& los_type, const gz::math::Pose3d& tag_pose, Beacon& beacon);
 
     private: // Métodos de publicación
-        void publishMeasurement(Beacon& beacon);
-        void publishMarkers(std::unordered_map<int, Beacon>& beacons);
+        void publishMeasurement(const Beacon& beacon);
+        void publishMarkers(const Beacon& beacon);
 
     private: // Callbacks
-        void eifInputCallback(int beacon_id, const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg);
+        void eifInputCallback(const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg);
 
     private: // Métodos para EIF
-        Eigen::Matrix3d RNoiseModel(double vel_xy_max, double vel_z_max, double dt);
-        Eigen::Matrix<double, 1, 3> HJacobianN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
-        Eigen::Matrix3d QNoiseModelN(const Eigen::Matrix3d& R);
-        double hFunctionN(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
+        Eigen::Matrix3d noiseModel_R(double vel_xy_max, double vel_z_max, double dt);
+        Eigen::Matrix<double, 1, 3> jacobian_H(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
+        Eigen::Matrix3d noiseModel_Q(const Eigen::Matrix3d& R);
+        double function_h(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
 
     private: // Métodos de lógica de balizas
         double computeDistanceToTag(const gz::math::Pose3d& tag_pose, const Beacon& beacon);
