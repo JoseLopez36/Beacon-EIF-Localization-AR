@@ -122,6 +122,18 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /uwb_beacon/uwb_beacon_3/markers
       Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Beacon4
+      Namespaces:
+        "": true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /uwb_beacon/uwb_beacon_4/markers
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -168,7 +180,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 47.55431365966797
+      Distance: 73.56029510498047
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -183,10 +195,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.29479920864105225
+      Pitch: 0.8947979211807251
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.3804070949554443
+      Yaw: 3.4754083156585693
     Saved: ~
 Window Geometry:
   Displays:
