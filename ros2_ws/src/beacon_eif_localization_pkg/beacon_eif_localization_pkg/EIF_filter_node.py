@@ -85,22 +85,25 @@ class EIFFilterNode(Node):
         self.get_logger().debug(f"Medida de baliza {beacon_id}: distancia = {beacon_distance}, timestamp = {beacon_timestamp}")        
 
     def estimate_localization(self):
-        self.get_logger().info("Estimando localización...")
-        
-        self.predict()
+        try:
+            self.get_logger().info("Estimando localización...")
+            
+            self.predict()
 
-        now = self.get_clock().now().nanoseconds        # Mismo tipo de timestamp que el mensaje de la baliza
-        with self.lock:
-            z = self.last_measurements[ now - self.last_measurements[2] < self.valid_measurement_threshold ] # Filtrar medidas válidas ()
-        z = z[:, :2] # id y distancia
-        if len(z) == 0:
-            self.get_logger().warn("No hay medidas válidas disponibles, no es posible actualizar predicción")
+            now = self.get_clock().now().nanoseconds        # Mismo tipo de timestamp que el mensaje de la baliza
+            with self.lock:
+                z = self.last_measurements[ now - self.last_measurements[2] < self.valid_measurement_threshold ] # Filtrar medidas válidas ()
+            z = z[:, :2] # id y distancia
+            if len(z) == 0:
+                self.get_logger().warn("No hay medidas válidas disponibles, no es posible actualizar predicción")
+                return self.mu, self.omega, self.xi
+            xi, omega = self.update(z)
+
+            self.publish_estimation(xi, omega) # Publicar estimación de localización
+            
             return self.mu, self.omega, self.xi
-        xi, omega = self.update(z)
-
-        self.publish_estimation(xi, omega) # Publicar estimación de localización
-        
-        return self.mu, self.omega, self.xi
+        except np.linalg.LinAlgError:
+            self.logger.warning("Singular matrix, filter cannot do the calculations")
 
     def predict(self):
         # Parte de predicción del filtro EIF
