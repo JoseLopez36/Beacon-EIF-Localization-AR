@@ -36,7 +36,7 @@ namespace gz
 		double reception_probability = 1.0;
 		double beacon_noise_std_eif = 0.0;
 		double nlos_soft_wall_width = 0.25;
-		double max_db_distance = 14;
+		double max_db_distance = 14.0;
 		double step_db_distance = 0.1;
 		if (_sdf->HasElement("update_rate"))
 		{
@@ -549,14 +549,12 @@ namespace gz
 		// Crear vector de modelos a evitar en el cálculo de intersecciones
 		// Evitaremos la propia baliza y el vehículo
 		std::vector<std::string> models_to_avoid;
+		models_to_avoid.push_back("ground_plane");
 		models_to_avoid.push_back("uwb_beacon_0");
 		models_to_avoid.push_back("uwb_beacon_1");
 		models_to_avoid.push_back("uwb_beacon_2");
 		models_to_avoid.push_back("uwb_beacon_3");
 		models_to_avoid.push_back("uwb_beacon_4");
-		models_to_avoid.push_back("uwb_beacon_5");
-		models_to_avoid.push_back("uwb_beacon_6");
-		models_to_avoid.push_back("uwb_beacon_7");
 		models_to_avoid.push_back(_ecm.Component<sim::components::Name>(tag_entity_)->Data());
 
 		// Comprobar si hay un obstáculo entre la baliza y el tag

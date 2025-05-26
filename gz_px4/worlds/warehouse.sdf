@@ -248,7 +248,6 @@
       <pose>0 0 -0.09 0 0 0</pose>
       <static>true</static>
     </include>
-
     <!-- Objects -->
     <include>
       <uri>
@@ -434,7 +433,7 @@
         model://uwb_beacon
       </uri>
       <name>uwb_beacon_0</name>
-      <pose>1.0 1.0 1.2 0 0 0</pose>
+      <pose>8.0 0.0 3.5 0 0 0</pose>
       <static>true</static>
     </include>
     <include>
@@ -442,7 +441,7 @@
         model://uwb_beacon
       </uri>
       <name>uwb_beacon_1</name>
-      <pose>-1.0 -1.0 1.2 0 0 0</pose>
+      <pose>-8.0 -8.0 5.2 0 0 0</pose>
       <static>true</static>
     </include>
     <include>
@@ -450,7 +449,7 @@
         model://uwb_beacon  
       </uri>
       <name>uwb_beacon_2</name>
-      <pose>1.0 -1.0 1.2 0 0 0</pose>
+      <pose>0.0 -8.0 6.8 0 0 0</pose>
       <static>true</static>
     </include>
     <include>
@@ -458,7 +457,15 @@
         model://uwb_beacon
       </uri>
       <name>uwb_beacon_3</name>
-      <pose>-1.0 1.0 1.2 0 0 0</pose>
+      <pose>2.0 8.0 9.2 0 0 0</pose>
+      <static>true</static>
+    </include>
+    <include>
+      <uri>
+        model://uwb_beacon
+      </uri>
+      <name>uwb_beacon_4</name>
+      <pose>-6.0 8.0 7.5 0 0 0</pose>
       <static>true</static>
     </include>
     <!-- End UWB beacons -->
