@@ -99,4 +99,16 @@ def generate_launch_description():
             )
         )
 
+    if nodes['EIF_filter_descentralized'][0]:
+        ld.add_action(
+            Node(
+                package='beacon_eif_localization_pkg',
+                executable='EIF_filter_descentralized_node',
+                #name='EIF_filter_node',
+                output='screen',
+                arguments=['--ros-args', '--log-level', nodes['EIF_filter_descentralized'][1]],
+                parameters=[system_path, EIF_filter_path, drone_control_path],
+            )
+        )
+
     return ld
