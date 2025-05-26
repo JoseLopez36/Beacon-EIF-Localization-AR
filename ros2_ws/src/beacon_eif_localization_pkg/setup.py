@@ -27,6 +27,7 @@ setup(
             'tf_manager_node = beacon_eif_localization_pkg.tf_manager_node:main',
             'visualization_node = beacon_eif_localization_pkg.visualization_node:main',
             'EIF_filter_node = beacon_eif_localization_pkg.EIF_filter_node:main',
+            'EIF_filter_descentralized_node = beacon_eif_localization_pkg.EIF_filter_descentralized_node:main',
         ],
     },
 )

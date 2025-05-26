@@ -14,9 +14,9 @@ from .EIF_models import g_function, G_jacobian, h_function_n, H_jacobian_n, R_no
 # Importar mensajes de beacon_eif_localization_msgs
 from gz_uwb_beacon_msgs.msg import EIFInput, EIFOutput
 
-class EIFFilterNode(Node):
+class EIFFilterDescentralizedNode(Node):
     def __init__(self):
-        super().__init__('EIF_filter_node', automatically_declare_parameters_from_overrides=True, allow_undeclared_parameters=True)
+        super().__init__('EIF_filter_descentralized_node', automatically_declare_parameters_from_overrides=True, allow_undeclared_parameters=True)
         self.get_logger().info("Iniciando nodo de filtro EIF...")
         params = self._parameters  # Diccionario interno de parámetros
         self.get_logger().debug(f"Parámetros disponibles: {list(params.keys())}")
@@ -174,9 +174,9 @@ class EIFFilterNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    eif_filter_node = EIFFilterNode()
-    rclpy.spin(eif_filter_node)
-    eif_filter_node.destroy_node()
+    eif_filter_descentralized_node = EIFFilterDescentralizedNode()
+    rclpy.spin(eif_filter_descentralized_node)
+    eif_filter_descentralized_node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':

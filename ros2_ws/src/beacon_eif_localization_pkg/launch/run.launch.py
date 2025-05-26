@@ -24,7 +24,8 @@ def generate_launch_description():
         'drone_control': launch.get('drone_control', [True, 'info']),
         'tf_manager': launch.get('tf_manager', [True, 'info']),
         'visualization': launch.get('visualization', [True, 'info']),
-        'EIF_filter': launch.get('EIF_filter', [True, 'info'])
+        'EIF_filter': launch.get('EIF_filter', [True, 'info']),
+        'EIF_filter_descentralized': launch.get('EIF_filter', [True, 'info'])
     }
 
     # Inicializar la descripción de la lanzamiento
