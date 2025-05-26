@@ -4,7 +4,7 @@ std_msgs/Header header
 int32 beacon_id
 int32 tag_id
 
-# Medida de distancia
+# Medida de distancia (m)
 float32 distance
 
 # Otros

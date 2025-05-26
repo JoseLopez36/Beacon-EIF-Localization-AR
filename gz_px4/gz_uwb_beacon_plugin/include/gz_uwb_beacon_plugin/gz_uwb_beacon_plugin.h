@@ -55,6 +55,15 @@ namespace gz
         public gz::sim::ISystemReset
     {
     public: // Tipos
+        // Modo de funcionamiento de la baliza:
+        // DISTANCE (modo por defecto): publica distancia medida
+        // PARALLEL_EIF: recibe peticiones de cálculo de la matriz y vector de información parciales 
+        // para ser usados en un filtro de información extendido
+        enum BeaconMode
+        {
+            DISTANCE,
+            PARALLEL_EIF
+        };
         // Line-Of-Sight de la baliza con el tag del vehículo
         enum LineOfSight
         {
@@ -63,48 +72,55 @@ namespace gz
             NLOS_S,     // Non Line of Sight Soft
             NLOS_H      // Non Line of Sight Hard
         };
-        // Estructura de datos de baliza
-        struct Beacon
+        // Estructura de parámetros de baliza
+        struct BeaconParameters
         {
             // ID de la baliza
             int id;
             // ID del tag asociado a la baliza
             int tag_id;
-            // Parámetros EIF
-            Eigen::Matrix3d R;
-            // Pose de la baliza
-            gz::math::Pose3d beacon_pose;
-            // Pose del tag
-            gz::math::Pose3d tag_pose;
-            // Medidas de la baliza
-            double distance_measurement;
-            double rss;
-            double error_estimation;
-            LineOfSight los_type;
+            // Modo de funcionamiento de la baliza
+            BeaconMode mode;
+            // Parámetros intrínsecos de la baliza
+            double noise_std;
+            double reception_probability;
+            double nlos_soft_wall_width;
+            double max_db_distance;
+            double step_db_distance;
             // Parámetros de Gazebo
             std::string model_name;
+            gz::math::Pose3d pose;
             // Publicadores de baliza
             rclcpp::Publisher<gz_uwb_beacon_msgs::msg::Measurement>::SharedPtr measurement_pub;
             rclcpp::Subscription<gz_uwb_beacon_msgs::msg::EIFInput>::SharedPtr eif_input_sub;
             rclcpp::Publisher<gz_uwb_beacon_msgs::msg::EIFOutput>::SharedPtr eif_output_pub;
+            rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markers_pub;
 
             // Constructor
-            Beacon() : id(), tag_id(), beacon_pose(), tag_pose(), distance_measurement(), rss(), error_estimation(),
-                los_type(), model_name(), measurement_pub(), eif_input_sub(), eif_output_pub()
+            BeaconParameters() : id(), tag_id(), mode(), noise_std(), model_name(), pose(),
+                measurement_pub(), eif_input_sub(), eif_output_pub(), markers_pub()
+            {
+            }
+        };
+        // Estructura de medidas de baliza
+        struct BeaconMeasurements
+        {
+            LineOfSight los_type;       // Tipo de Line-Of-Sight
+            double distance;            // Distancia medida (m)
+            double rss;                 // Potencia de la señal
+            double error_estimation;
+
+            // Constructor
+            BeaconMeasurements() : los_type(), distance(), rss(), error_estimation()
             {
             }
         };
 
     public: // Parámetros
-        std::string beacon_name_;
-        double reception_probability_;
-        double nlos_soft_wall_width_;
-        double max_db_distance_;
-        double step_db_distance_;
+        BeaconParameters beacon_params_;
 
     public: // Datos
-        // Beacons
-        Beacon beacon_;
+        BeaconMeasurements beacon_measurements_;
         // Generador de números aleatorios
         std::default_random_engine random_generator_;
 
@@ -117,25 +133,21 @@ namespace gz
         void Reset(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
         void PreUpdate(const sim::UpdateInfo& _info, sim::EntityComponentManager& _ecm) override;
 
-    private: // Métodos de actualización
-        void updateBeacon(const float& ranging_value, const float& power_value, const LineOfSight& los_type, const gz::math::Pose3d& tag_pose, Beacon& beacon);
-
     private: // Métodos de publicación
-        void publishMeasurement(const Beacon& beacon);
-        void publishMarkers(const Beacon& beacon);
+        void publishMeasurement(const BeaconMeasurements& beacon_measurements);
+        void publishMarkers(const gz::math::Pose3d& tag_pose, const BeaconMeasurements& beacon_measurements);
 
     private: // Callbacks
         void eifInputCallback(const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg);
 
     private: // Métodos para EIF
-        Eigen::Matrix3d noiseModel_R(double vel_xy_max, double vel_z_max, double dt);
         Eigen::Matrix<double, 1, 3> jacobian_H(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
-        Eigen::Matrix3d noiseModel_Q(const Eigen::Matrix3d& R);
+        double noiseModel_Q(const double& noise_std);
         double function_h(const Eigen::Vector3d& mu, const Eigen::Vector3d& beacon_position);
 
     private: // Métodos de lógica de balizas
-        double computeDistanceToTag(const gz::math::Pose3d& tag_pose, const Beacon& beacon);
-        LineOfSight computeLineOfSight(sim::EntityComponentManager& _ecm, const double& distance, const gz::math::Pose3d& tag_pose, const Beacon& beacon, double& distance_after_rebounds);
+        double computeDistanceToTag(const gz::math::Pose3d& tag_pose);
+        LineOfSight computeLineOfSight(sim::EntityComponentManager& _ecm, const double& distance, const gz::math::Pose3d& tag_pose, double& distance_after_rebounds);
         double computeRandomDistance(const double& ranging_mean, const double& ranging_std);
         double computeRandomPower(const double& rss_mean, const double& rss_std);
 
