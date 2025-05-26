@@ -3,7 +3,6 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.task import Future
 from message_filters import ApproximateTimeSynchronizer
 import numpy as np
 from threading import Lock, Event
@@ -64,7 +63,7 @@ class EIFFilterNode(Node):
         self.last_calculations = [[beacon_id, None, None] for beacon_id in self.beacons_ids] # Lista de medidas de balizas [id, distancia, timestamp]
         self.last_broadcast = 0
         self.calculations_received = 0
-        self.future_calculations = Future()
+        self.calculations_receive_event = Event()
 
         # Subscriptores y publicadores
         self.predict_pub = self.create_publisher(PoseStamped,"/predicted_position", self.num_beacons)   
@@ -88,8 +87,7 @@ class EIFFilterNode(Node):
 
         self.calculations_received += 1
         if self.calculations_received == self.num_beacons:
-            with self.lock:
-                self.future_calculations.set_result(self.last_calculations)
+            self.calculations_receive_event.clear()
 
         # Guardar la última medida de la baliza
         with self.lock:
@@ -105,9 +103,9 @@ class EIFFilterNode(Node):
         input_msg.mu = mu
         input_msg.mu_pred = mu_pred
 
+        self.calculations_receive_event.set()
         self.eif_output_pub.publish(input_msg)
-        future = Future()
-        return now.nanoseconds, future
+        return now.nanoseconds, 
 
     def estimate_localization(self):
         self.get_logger().info("Estimando localización...")
@@ -115,9 +113,9 @@ class EIFFilterNode(Node):
         xi_pred, omega_pred, mu_pred = self.predict()
 
         # Mandar infomación a las valizas para que puedan realizar los calculos
-        self.last_broadcast, self.future_calculations = self.publish_eif_input(self.mu, mu_pred)
+        self.last_broadcast = self.publish_eif_input(self.mu, mu_pred)
 
-        while rclpy.ok() and not self.future_calculations.done() or (self.get_clock().now().nanoseconds - self.last_broadcast) < self.CALCULATIONS_TIMEOUT:
+        while rclpy.ok() and  self.calculations_receive_event.is_set() or (self.get_clock().now().nanoseconds - self.last_broadcast) < self.CALCULATIONS_TIMEOUT:
             rclpy.spin_once(self, timeout_sec=0.1)
 
 
