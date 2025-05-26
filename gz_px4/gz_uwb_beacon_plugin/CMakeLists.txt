@@ -22,6 +22,7 @@ find_package(gz_uwb_beacon_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 # Crear la biblioteca del plugin
 add_library(${PROJECT_NAME} SHARED src/gz_uwb_beacon_plugin.cpp)
@@ -46,6 +47,7 @@ ament_target_dependencies(${PROJECT_NAME}
   tf2
   tf2_ros
   tf2_geometry_msgs
+  Eigen3
 )
 
 # Instalar el plugin
@@ -80,6 +82,7 @@ ament_export_dependencies(
   tf2
   tf2_ros
   tf2_geometry_msgs
+  Eigen3
   rosidl_default_runtime
 )
 
