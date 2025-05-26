@@ -32,14 +32,14 @@ def h_function_n(mu, pos_b):
     # h total : dimesiones: n x 1
     # h = [d1, d2, d3, ... , dn] = distancia a cada baliza
     h = np.sqrt( (mu[0] - pos_b[0])**2 + (mu[1] - pos_b[1])**2 + (mu[2] - pos_b[2])**2 )
-    return h
+    return np.array([h])
 
 def H_jacobian_n(mu, pos_b):
     # Jacobiano de h de una sola baliza
     # en total dimensiones: 1 x 3
-    H = np.zeros((3, 1))
+    H = np.zeros((1, 3))
     for j in range(len(mu)):
-        H[j] = (mu[j][0] - pos_b[j])/np.sqrt((mu[0][0] - pos_b[0])**2 + (mu[1][0] - pos_b[1])**2 + (mu[2][0] - pos_b[2])**2)
+        H[0][j] = (mu[j][0] - pos_b[j])/np.sqrt((mu[0][0] - pos_b[0])**2 + (mu[1][0] - pos_b[1])**2 + (mu[2][0] - pos_b[2])**2)
     return H
 '''
 Modelado del ruido de proceso y de medición:

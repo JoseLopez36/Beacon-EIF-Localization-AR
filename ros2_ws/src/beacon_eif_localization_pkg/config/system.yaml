@@ -2,20 +2,24 @@
   ros__parameters:
     # Balizas:
     beacons:
-      ids: ["uwb_beacon_0", "uwb_beacon_1", "uwb_beacon_2", "uwb_beacon_3"] 
+      ids: ["uwb_beacon_0", "uwb_beacon_1", "uwb_beacon_2", "uwb_beacon_3", "uwb_beacon_4"] 
       uwb_beacon_0:
-        position: [5.0, 5.0, 1.2]
+        position: [8.0, 0.0, 3.5]
         noise_std: 0.004
         frame_id: "global"
       uwb_beacon_1:
-        position: [-5.0, -5.0, 1.2]
+        position: [-8.0, -8.0, 5.2]
         noise_std: 0.004
         frame_id: "global"
       uwb_beacon_2:
-        position: [5.0, -5.0, 1.2]
+        position: [0.0, -8.0, 6.8]
         noise_std: 0.004
         frame_id: "global"
       uwb_beacon_3:
-        position: [-5.0, 5.0, 1.2]
+        position: [2.0, 8.0, 9.2]
+        noise_std: 0.004
+        frame_id: "global"
+      uwb_beacon_4:
+        position: [-6.0, 8.0, 7.5]
         noise_std: 0.004
         frame_id: "global"

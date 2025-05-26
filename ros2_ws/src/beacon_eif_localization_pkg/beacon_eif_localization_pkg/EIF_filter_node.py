@@ -31,9 +31,9 @@ class EIFFilterNode(Node):
         self.num_beacons = len(self.beacons_ids)
         self.beacons = {}
         for beacon_id in self.beacons_ids:
-            position = self.get_parameter(f'{beacon_id}.position').value
-            noise_std = self.get_parameter(f'{beacon_id}.noise_std').value
-            self.beacons[beacon_id] = {"position" : position, "noise_std" : noise_std}                                                 
+            position = self.get_parameter(f'beacons.{beacon_id}.position').value
+            noise_std = self.get_parameter(f'beacons.{beacon_id}.noise_std').value
+            self.beacons[beacon_id] = {"position" : position, "noise_std" : noise_std}                             
 
         # Modelo de predicción y medición:
         self.g, self.h_n, self.G, self.H_n = g_function, h_function_n, G_jacobian, H_jacobian_n
@@ -43,12 +43,12 @@ class EIFFilterNode(Node):
         self.R = R_noise_model(self.horizontal_vel, self.vertical_vel, 1.0 / self.filter_update_rate)                  # Ruido de proceso
 
         # Variables para la creencia de la localizacion en forma canónica
-        self.omega = np.zeros([3,3],dtype=np.float64)                           # Matriz de información
+        self.omega = np.eye(3, dtype=np.float64)                           # Matriz de información
         self.xi    = np.array([[0],[0],[0]],dtype=np.float64)                   # Vector de información 
         self.mu    = np.array([[0],[0],[0]],dtype=np.float64)                   # vector media del estado estimado
 
         # Variables de resultado de predicción
-        self.omega_pred = np.zeros([3,3],dtype=np.float64)                           
+        self.omega_pred = np.eye(3, dtype=np.float64)                           
         self.xi_pred    = np.array([[0],[0],[0]],dtype=np.float64)                   
         self.mu_pred    = np.array([[0],[0],[0]],dtype=np.float64)                     
 
@@ -65,17 +65,17 @@ class EIFFilterNode(Node):
 
         #if self.beacon_id != "":
         for beacon_id in self.beacons_ids:
-            self.create_subscription(Measurement, f'/measurement/{beacon_id}', self.beacon_measurements_callback, 10)
+            self.create_subscription(Measurement, f'/uwb_beacon/{beacon_id}/measurement', self.beacon_measurements_callback, 10)
             
         # Temporizador para la frecuencia de actualización
-        self.timer = self.create_timer(self.filter_update_rate, self.estimate_localization)
+        self.timer = self.create_timer(1.0 / self.filter_update_rate, self.estimate_localization)
 
         self.get_logger().info("Nodo de filtro EIF iniciado")
 
     def beacon_measurements_callback(self, beacon_msg):
-        beacon_id = beacon_msg.id
+        beacon_id = beacon_msg.beacon_id
         beacon_distance = beacon_msg.distance
-        beacon_timestamp = Time.from_msg(beacon_msg.timestamp).nanoseconds
+        beacon_timestamp = Time.from_msg(beacon_msg.header.stamp).nanoseconds
 
         # Guardar la última medida de la baliza
         with self.lock:
@@ -93,9 +93,10 @@ class EIFFilterNode(Node):
             now = self.get_clock().now().nanoseconds        # Mismo tipo de timestamp que el mensaje de la baliza
             z = []
             with self.lock:
-                for i in self.last_measurements:
-                    if now - self.last_measurements[i][2] < self.valid_measurement_threshold:
-                        z.append(self.last_measurements[i][:2]) # Filtrar medidas válidas ()
+                for i in range(len(self.last_measurements)):
+                    if self.last_measurements[i][2] is not None:
+                        if now - self.last_measurements[i][2] < self.valid_measurement_threshold:
+                            z.append(self.last_measurements[i][:2]) # Filtrar medidas válidas ()
             #z = z[:, :2] # id y distancia
             if len(z) == 0:
                 self.get_logger().warning("No hay medidas válidas disponibles, no es posible actualizar predicción")
@@ -124,7 +125,7 @@ class EIFFilterNode(Node):
 
     def update(self, z):
         # Sumatorios de la actualización de matriz y vector de información segun el número de medidas disponibles
-        for i in range(len(z)): 
+        for i in range(len(z)):
             beacon_id = z[i][0]        # id != i
             H = self.H_n(self.mu, self.beacons[beacon_id]['position']) 
             Q = self.Q_n(self.beacons[beacon_id]['noise_std'])                  # Ruido de medición estandar de cada baliza
@@ -138,8 +139,8 @@ class EIFFilterNode(Node):
         self.xi = self.xi_pred + self.xi_sum
 
         # Resetear sumas
-        self.xi_sum = np.fill(0)
-        self.omega_sum = np.fill(0)                         
+        self.xi_sum.fill(0)
+        self.omega_sum.fill(0)
 
         return self.xi, self.omega
 
