@@ -123,7 +123,7 @@ namespace gz
 				// Crear publicador de EIF Input (solo si el modo es PARALLEL_EIF)
 				if (beacon_params_.mode == PARALLEL_EIF)
 				{
-					std::string eif_input_topic = "/uwb_beacon/" + beacon_params_.model_name + "/eif_input";
+					std::string eif_input_topic = "/uwb_beacon/eif_input";
 					beacon_params_.eif_input_sub = node_->create_subscription<gz_uwb_beacon_msgs::msg::EIFInput>(
 						eif_input_topic, 10, std::bind(&GzUwbBeaconPlugin::eifInputCallback, this, std::placeholders::_1));
 					RCLCPP_INFO(node_->get_logger(), "UWB-Beacon-Plugin: EIF Input Subscribing in %s", eif_input_topic.c_str());
@@ -423,6 +423,13 @@ namespace gz
 		{
 			std::lock_guard<std::mutex> lock(beacon_mutex_);
 			beacon_measurements = beacon_measurements_;
+		}
+
+		// Si no hay LOS
+		if (beacon_measurements.los_type == NLOS)
+		{
+			RCLCPP_DEBUG(node_->get_logger(), "UWB-Beacon-Plugin: NLOS. No EIF Input");
+			return;
 		}
 
 		// Obtener datos relevantes
