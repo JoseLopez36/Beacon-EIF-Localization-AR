@@ -19,6 +19,7 @@ class StatsMonitorNode(Node):
         self.stats_sub = self.create_subscription(ProcessStats,"/process_stats",self.stats_callback, 10)
 
         # Publicadores
+        self.stats_pub = self.create_publisher()
         
 
     # Subcribers callbacks:
@@ -30,6 +31,10 @@ class StatsMonitorNode(Node):
 
     def stats_callback(self):
         pass
+
+    def publish(self):
+        pass
+
 
 def main(args=None):
     rclpy.init(args=args)
