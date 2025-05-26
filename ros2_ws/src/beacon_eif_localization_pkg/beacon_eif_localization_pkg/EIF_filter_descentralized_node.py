@@ -60,7 +60,7 @@ class EIFFilterNode(Node):
     
         # Variables para la gestion de mediciones
         self.lock = Lock() # Para proteger el acceso a las mediciones
-        self.last_calculations = [[beacon_id, None, None] for beacon_id in self.beacons_ids] # Lista de medidas de balizas [id, distancia, timestamp]
+        self.last_calculations = []
         self.last_broadcast = 0
         self.calculations_received = 0
         self.calculations_receive_event = Event()
@@ -70,8 +70,8 @@ class EIFFilterNode(Node):
 
         #if self.beacon_id != "":
         for beacon_id in self.beacons_ids:
-            self.create_subscription(EIFInput,f"/uwb_beacon/{beacon_id}/eif_input", self.partial_innovation_callback, 10)
-            self.eif_output_pub =  self.create_publisher(EIFOutput,f"eif_output_topic",10)
+            self.create_subscription(EIFInput,f"/uwb_beacon/{beacon_id}/eif_output", self.partial_innovation_callback, 10)
+        self.eif_output_pub =  self.create_publisher(EIFOutput,f"eif_input",10)
             
         # Temporizador para la frecuencia de actualización
         self.timer = self.create_timer(self.filter_update_rate, self.estimate_localization)
@@ -79,21 +79,22 @@ class EIFFilterNode(Node):
         self.get_logger().info("Nodo de filtro EIF iniciado")
 
     def partial_innovation_callback(self, beacon_output_msg):
-        beacon_id = beacon_output_msg.id
-        xi_n = beacon_output_msg.xi
-        omega_n = beacon_output_msg.omega
-        beacon_timestamp = Time.from_msg(beacon_output_msg.timestamp).nanoseconds
+        if self.calculations_receive_event.is_set():
+            beacon_id = beacon_output_msg.id
+            xi_n = beacon_output_msg.xi
+            omega_n = beacon_output_msg.omega
+            beacon_timestamp = Time.from_msg(beacon_output_msg.timestamp).nanoseconds
 
+            with self.lock:
+                self.last_calculations.append([xi_n, omega_n])
 
-        self.calculations_received += 1
-        if self.calculations_received == self.num_beacons:
-            self.calculations_receive_event.clear()
+            self.calculations_received += 1
+            if self.calculations_received == self.num_beacons:
+                self.calculations_receive_event.clear()
 
-        # Guardar la última medida de la baliza
-        with self.lock:
-            self.last_calculations[beacon_id][1] = xi_n
-            self.last_calculations[beacon_id][1] = omega_n
-            self.last_calculations[beacon_id][3] = beacon_timestamp
+            # Guardar la última medida de la baliza
+            
+
 
         
     def publish_eif_input(self, mu, mu_pred):
@@ -115,16 +116,12 @@ class EIFFilterNode(Node):
         # Mandar infomación a las valizas para que puedan realizar los calculos
         self.last_broadcast = self.publish_eif_input(self.mu, mu_pred)
 
-        while rclpy.ok() and  self.calculations_receive_event.is_set() or (self.get_clock().now().nanoseconds - self.last_broadcast) < self.CALCULATIONS_TIMEOUT:
+        while rclpy.ok() and self.calculations_receive_event.is_set() and (self.get_clock().now().nanoseconds - self.last_broadcast) < self.CALCULATIONS_TIMEOUT:
             rclpy.spin_once(self, timeout_sec=0.1)
 
+        innovation = self.last_calculations
+        self.last_calculations = []
 
-        with self.lock:
-            innovation = self.last_calculations[(self.last_broadcast - self.last_calculations[3] < self.valid_time_threshold) and (now - self.last_calculations[3] > 0)] # Filtrar medidas válidas ()
-        innovation = innovation[:, :3] # id, xi, omega
-        if len(innovation) == 0:
-            self.get_logger().warn("No hay calculos válidos disponibles, no es posible actualizar predicción")
-            return self.mu, self.omega, self.xi
         xi, omega = self.update(innovation)
 
         self.publish_estimation(xi, omega) # Publicar estimación de localización
