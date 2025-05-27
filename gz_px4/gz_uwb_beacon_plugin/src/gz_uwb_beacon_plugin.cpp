@@ -36,7 +36,7 @@ namespace gz
 		double reception_probability = 1.0;
 		double beacon_noise_std_eif = 0.0;
 		double nlos_soft_wall_width = 0.25;
-		double max_db_distance = 14.0;
+		double max_db_distance = 30.0;
 		double step_db_distance = 0.1;
 		if (_sdf->HasElement("update_rate"))
 		{
@@ -147,6 +147,20 @@ namespace gz
 			}
 		}
 
+		// Obtener cajas de los modelos a comprobar en el cálculo de intersecciones
+		model_boxes_.clear();
+		for (auto& model_to_check : models_to_check_)
+		{
+			// Obtener el modelo
+			auto model = _ecm.EntityByComponents(sim::components::Name(model_to_check));
+			if (!model)
+				continue;
+
+			// Obtener la caja del modelo
+			math::AxisAlignedBox model_box = getModelBox(_ecm, model);
+			model_boxes_[model_to_check] = model_box;
+		}
+
 		// Log
 		RCLCPP_INFO(node_->get_logger(),
 			"UWB-Beacon-Plugin: Plugin is running. Beacon ID: %d, Tag ID: %d, Beacon Mode: %d",
@@ -183,14 +197,17 @@ namespace gz
 		// Calcular la distancia real entre la baliza y el tag
 		const double initial_ranging = computeDistanceToTag(tag_pose);
 
-		// Computar el Line-Of-Sight de la baliza junto a la distancia después de rebotes
-		double ranging = initial_ranging;
-		LineOfSight los_type = computeLineOfSight(_ecm, initial_ranging, tag_pose, ranging);
-
 		// Comprobar si la distancia supera la distancia máxima de la baliza
-		if ((los_type == LOS || los_type == NLOS_S || los_type == NLOS_H) && ranging > beacon_params_.max_db_distance)
+		LineOfSight los_type;
+		double ranging = initial_ranging;
+		if (initial_ranging > beacon_params_.max_db_distance)
 		{
 			los_type = NLOS;
+		}
+		// Si la distancia es menor que la distancia máxima de la baliza, calcular el Line-Of-Sight
+		else
+		{
+			los_type = computeLineOfSight(initial_ranging, tag_pose, ranging);
 		}
 
 		// Si hay algún Line-Of-Sight
@@ -540,28 +557,21 @@ namespace gz
 		return tag_pose.Pos().Distance(beacon_params_.pose.Pos());
 	}
 
-	GzUwbBeaconPlugin::LineOfSight GzUwbBeaconPlugin::computeLineOfSight(sim::EntityComponentManager& _ecm, const double& distance, const gz::math::Pose3d& tag_pose, double& distance_after_rebounds)
+	GzUwbBeaconPlugin::LineOfSight GzUwbBeaconPlugin::computeLineOfSight(const double& distance, const gz::math::Pose3d& tag_pose, double& distance_after_rebounds)
 	{
 		// Inicializar variable como LOS
 		LineOfSight los_type = LOS;
 		distance_after_rebounds = distance;
 
-		// Crear vector de modelos a evitar en el cálculo de intersecciones
-		// Evitaremos la propia baliza y el vehículo
-		std::vector<std::string> models_to_avoid;
-		models_to_avoid.push_back("ground_plane");
-		models_to_avoid.push_back("warehouse");
-		models_to_avoid.push_back("uwb_beacon_0");
-		models_to_avoid.push_back("uwb_beacon_1");
-		models_to_avoid.push_back("uwb_beacon_2");
-		models_to_avoid.push_back("uwb_beacon_3");
-		models_to_avoid.push_back("uwb_beacon_4");
-		models_to_avoid.push_back(_ecm.Component<sim::components::Name>(tag_entity_)->Data());
+		// Obtener posición y orientación del tag y de la baliza
+		const math::Vector3d tag_position = tag_pose.Pos();
+		const math::Quaternion tag_orientation = tag_pose.Rot();
+		const math::Vector3d beacon_position = beacon_params_.pose.Pos();
 
 		// Comprobar si hay un obstáculo entre la baliza y el tag
 		double distance_to_obstacle_from_tag = 0.0;
 		std::string obstacle_name_1 = "";
-		obstacle_name_1 = getIntersection(_ecm, tag_pose.Pos(), beacon_params_.pose.Pos(), models_to_avoid, distance_to_obstacle_from_tag);
+		obstacle_name_1 = getIntersection(tag_position, beacon_position, distance_to_obstacle_from_tag);
 		if (obstacle_name_1.compare("") == 0)
 		{
 			// No hay obstáculo entre la baliza y el tag, se usa el modelo Line-Of-Sight
@@ -576,7 +586,7 @@ namespace gz
 		// para conocer el ancho de las paredes
 		double distance_to_obstacle_from_beacon = 0.0;
 		std::string obstacle_name_2 = "";
-		obstacle_name_2 = getIntersection(_ecm, beacon_params_.pose.Pos(), tag_pose.Pos(), models_to_avoid, distance_to_obstacle_from_beacon);
+		obstacle_name_2 = getIntersection(beacon_position, tag_position, distance_to_obstacle_from_beacon);
 
 		// Comprobar ancho de la pared
 		// Si es menor o igual al parámetro y los dos modelos coinciden, se usa el modelo NLOS_S
@@ -592,7 +602,7 @@ namespace gz
 
 		// La pared es más ancha que el parámetro, se comprueban los rebotes
 		// Obtener los ángulos de Euler del tag
-		tf2::Quaternion q(tag_pose.Rot().X(), tag_pose.Rot().Y(), tag_pose.Rot().Z(), tag_pose.Rot().W());
+		tf2::Quaternion q(tag_orientation.X(), tag_orientation.Y(), tag_orientation.Z(), tag_orientation.W());
 		tf2::Matrix3x3 m(q);
 		double roll, pitch, current_yaw;
 		m.getRPY(roll, pitch, current_yaw);
@@ -634,23 +644,23 @@ namespace gz
 			// Calcular un punto perteneciente al rayo a trazar
 			double current_angle = angles_to_test[index_ray];
 
-			double x = tag_pose.X() + max_distance * cos(current_angle);
-			double y = tag_pose.Y() + max_distance * sin(current_angle);
-			double z = tag_pose.Z();
+			double x = tag_position.X() + max_distance * cos(current_angle);
+			double y = tag_position.Y() + max_distance * sin(current_angle);
+			double z = tag_position.Z();
 
 			if (current_floor_distance > 0)
 			{
 				double tan_angle_floor =
-					(start_floor_distance_check + step_floor * (current_floor_distance - 1)) / tag_pose.Z();
+					(start_floor_distance_check + step_floor * (current_floor_distance - 1)) / tag_position.Z();
 				double angle_floor = atan(tan_angle_floor);
 
 				double h = sin(angle_floor) * max_distance;
 
 				double horizontal_distance = sqrt(max_distance * max_distance - h * h);
 
-				x = tag_pose.X() + horizontal_distance * cos(current_angle);
-				y = tag_pose.Y() + horizontal_distance * sin(current_angle);
-				z = -1.0 * (h - tag_pose.Z());
+				x = tag_position.X() + horizontal_distance * cos(current_angle);
+				y = tag_position.Y() + horizontal_distance * sin(current_angle);
+				z = -1.0 * (h - tag_position.Z());
 
 			}
 
@@ -659,35 +669,35 @@ namespace gz
 			// Obtener intersección entre el tag y el punto del rayo
 			std::string obstacle_name_3 = "";
 			double distance_to_rebound = 0.0;
-			obstacle_name_3 = getIntersection(_ecm, tag_pose.Pos(), ray_point, models_to_avoid, distance_to_rebound);
+			obstacle_name_3 = getIntersection(tag_position, ray_point, distance_to_rebound);
 
 			// Si hay intersección
 			if (obstacle_name_3.compare("") != 0)
 			{
 				// Calcular punto de colisión		
 				math::Vector3d collision_point(
-					tag_pose.X() + distance_to_rebound * cos(current_angle),
-					tag_pose.Y() + distance_to_rebound * sin(current_angle),
-					tag_pose.Z());
+					tag_position.X() + distance_to_rebound * cos(current_angle),
+					tag_position.Y() + distance_to_rebound * sin(current_angle),
+					tag_position.Z());
 
 				if (current_floor_distance > 0.0)
 				{
 					collision_point.Set(
-						tag_pose.X() + distance_to_rebound * cos(current_angle),
-						tag_pose.Y() + distance_to_rebound * sin(current_angle),
+						tag_position.X() + distance_to_rebound * cos(current_angle),
+						tag_position.Y() + distance_to_rebound * sin(current_angle),
 						0.0);
 				}
 
 				// Obtener intersección entre el punto de colisión y la baliza
 				std::string obstacle_name_4 = "";
 				double distance_to_final_obstacle = 0.0;
-				obstacle_name_4 = getIntersection(_ecm, collision_point, beacon_params_.pose.Pos(), models_to_avoid, distance_to_final_obstacle);
+				obstacle_name_4 = getIntersection(collision_point, beacon_position, distance_to_final_obstacle);
 
 				// Si no hay intersección
 				if (obstacle_name_4.compare("") == 0)
 				{
 					// Llegamos a la baliza después de un rebote
-					distance_to_final_obstacle = beacon_params_.pose.Pos().Distance(collision_point);
+					distance_to_final_obstacle = beacon_position.Distance(collision_point);
 					if (distance_to_rebound + distance_to_final_obstacle <= beacon_params_.max_db_distance)
 					{
 						found_nlos_h = true;
@@ -760,7 +770,7 @@ namespace gz
 		return distribution_rss(random_generator_);
 	}
 
-	std::string GzUwbBeaconPlugin::getIntersection(sim::EntityComponentManager& _ecm, const math::Vector3d& point1, const math::Vector3d& point2, const std::vector<std::string>& models_to_avoid, double& distance)
+	std::string GzUwbBeaconPlugin::getIntersection(const math::Vector3d& point1, const math::Vector3d& point2, double& distance)
 	{
 		std::string obstacle_name = "";
 
@@ -778,42 +788,10 @@ namespace gz
 		// Distancia más corta al rayo
 		distance = ray_length;
 
-		// Obtener todos los modelos presentes en el mundo
-		auto models = _ecm.EntitiesByComponents(sim::components::Model());
-
-		// Iterar sobre todos los modelos
-		for (auto& model : models)
+		// Iterar sobre las cajas de los modelos a comprobar
+		for (auto& [model_name, model_box] : model_boxes_)
 		{
-			// Obtener el nombre del modelo
-			auto name_comp = _ecm.Component<sim::components::Name>(model);
-			if (!name_comp)
-				continue;
-			std::string model_name = name_comp->Data();
-
-			// Saltar modelos indicados
-			bool skip = false;
-			for (const auto& model_to_avoid : models_to_avoid)
-			{
-				if (model_name.find(model_to_avoid) != std::string::npos)
-				{
-					skip = true;
-				}
-			}
-
-			// Saltar ground plane
-			if (model_name.find("ground_plane") != std::string::npos)
-			{
-				skip = true;
-			}
-
-			// Saltar modelo si se indica que se debe saltar
-			if (skip)
-				continue;
-
-			// Obtener la caja del modelo
-			math::AxisAlignedBox model_box = getModelBox(_ecm, model);
-
-			// Comprobar si el rayo intersecta con la caja
+			// Comprobar si el rayo intersecta con la caja y la distancia es menor que la distancia más corta encontrada
 			auto [intersects, hit_distance, hit_point] = model_box.Intersect(point1, direction, 0.0, ray_length);
 			if (intersects && hit_distance < distance)
 			{
