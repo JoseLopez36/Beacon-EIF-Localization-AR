@@ -16,6 +16,7 @@ find_package(sensor_msgs REQUIRED)
 # Generate interfaces
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Example.msg"
+  "msg/ProcessStats.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

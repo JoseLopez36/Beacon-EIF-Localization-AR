@@ -12,6 +12,7 @@ from .EIF_models import g_function, G_jacobian, h_function_n, H_jacobian_n, R_no
 
 # Importar mensajes de beacon_eif_localization_msgs
 from gz_uwb_beacon_msgs.msg import Measurement
+from beacon_eif_localization_msgs.msg import ProcessStats
 
 class EIFFilterNode(Node):
     def __init__(self):
@@ -61,7 +62,8 @@ class EIFFilterNode(Node):
         self.last_measurements = [[beacon_id, None, None] for beacon_id in self.beacons_ids] # Lista de medidas de balizas [id, distancia, timestamp]
 
         # Subscriptores y publicadores
-        self.predict_pub = self.create_publisher(PoseStamped,"/predicted_position", self.num_beacons)   
+        self.predict_pub = self.create_publisher(PoseStamped,f"/{self.get_name()}/predicted_position", self.num_beacons)   
+        self.stat_pub = self.create_publisher(ProcessStats,f"/{self.get_name()}/process_stats",10)
 
         #if self.beacon_id != "":
         for beacon_id in self.beacons_ids:
@@ -85,59 +87,70 @@ class EIFFilterNode(Node):
         self.get_logger().debug(f"Medida de baliza {beacon_id}: distancia = {beacon_distance}, timestamp = {beacon_timestamp}")        
 
     def estimate_localization(self):
-        try:
-            self.get_logger().debug("Estimando localización...")
-            
-            self.predict()
+        self.get_logger().info("Estimando localización...")
+        start_filter = self.get_clock().now()
+        start = self.get_clock().now()
+        self.predict()
+        predic_time = (self.get_clock().now() - start).nanoseconds / 1e9
 
-            now = self.get_clock().now().nanoseconds        # Mismo tipo de timestamp que el mensaje de la baliza
-            z = []
-            with self.lock:
-                for i in range(len(self.last_measurements)):
-                    if self.last_measurements[i][2] is not None:
-                        if now - self.last_measurements[i][2] < self.valid_measurement_threshold:
-                            z.append(self.last_measurements[i][:2]) # Filtrar medidas válidas ()
-            #z = z[:, :2] # id y distancia
-            if len(z) == 0:
-                self.get_logger().warning("No hay medidas válidas disponibles, no es posible actualizar predicción")
-                return self.mu, self.omega, self.xi
+        now = self.get_clock().now().nanoseconds        # Mismo tipo de timestamp que el mensaje de la baliza
+        z = []
+        with self.lock:
+            for i in range(len(self.last_measurements)):
+                if self.last_measurements[i][2] is not None:
+                    if now - self.last_measurements[i][2] < self.valid_measurement_threshold:
+                        z.append(self.last_measurements[i][:2]) # Filtrar medidas válidas ()
+        start =  self.get_clock().now()
+        if len(z) == 0:
+            self.get_logger().warning("No hay medidas válidas disponibles, no es posible actualizar predicción")
+        else:   
             xi, omega = self.update(z)
+        update_time = (self.get_clock().now() - start).nanoseconds / 1e9
+        with self.lock:
+            self.publish_estimation(self.xi, self.omega) # Publicar estimación de localización
+        filter_time = (self.get_clock().now() - start_filter).nanoseconds / 1e9
 
-            self.publish_estimation(xi, omega) # Publicar estimación de localización
-            
-            return self.mu, self.omega, self.xi
-        except np.linalg.LinAlgError:
-            self.get_logger().warning("Singular matrix, filter cannot do the calculations")
+        self.publish_stat(predic_time,update_time,filter_time,len(z))
+
+        return self.mu, self.omega, self.xi
+
 
 
     def predict(self):
-        # Parte de predicción del filtro EIF
-        # Calculo de la media de la estimación en t-1:
-        self.mu = np.linalg.inv(self.omega) @ self.xi
+        try:
+            # Parte de predicción del filtro EIF
+            # Calculo de la media de la estimación en t-1:
+            self.mu = np.linalg.inv(self.omega) @ self.xi
 
-        # Calculo prediciones de omega, xi y mu:
-        G = self.G(self.mu) # Jacobiano de la función de predicción
-        self.omega_pred = np.linalg.inv( G @ np.linalg.inv(self.omega) @ np.transpose(G) + self.R )     #Matriz de información predicha    
-        self.mu_pred = self.g(self.mu)
-        self.xi_pred = self.omega_pred @ self.mu_pred                                           #Vector de información predicho
-        
+            # Calculo prediciones de omega, xi y mu:
+            G = self.G(self.mu) # Jacobiano de la función de predicción
+            self.omega_pred = np.linalg.inv( G @ np.linalg.inv(self.omega) @ np.transpose(G) + self.R )     #Matriz de información predicha    
+            self.mu_pred = self.g(self.mu)
+            self.xi_pred = self.omega_pred @ self.mu_pred                                           #Vector de información predicho
+        except np.linalg.LinAlgError:
+            self.get_logger().warning("Singular matrix, filter cannot predict")
         return self.xi_pred, self.omega_pred, self.mu_pred
 
     def update(self, z):
-        # Sumatorios de la actualización de matriz y vector de información segun el número de medidas disponibles
-        for i in range(len(z)):
-            beacon_id = z[i][0]        # id != i
-            H = self.H_n(self.mu, self.beacons[beacon_id]['position']) 
-            Q = self.Q_n(self.beacons[beacon_id]['noise_std'])                  # Ruido de medición estandar de cada baliza
-            y = z[i][1] - self.h_n(self.mu, self.beacons[beacon_id]['position']) + H @ self.mu_pred #Innovación
+        try:
+            # Sumatorios de la actualización de matriz y vector de información segun el número de medidas disponibles
+            for i in range(len(z)):
+                beacon_id = z[i][0]        # id != i
+                H = self.H_n(self.mu, self.beacons[beacon_id]['position']) 
+                Q = self.Q_n(self.beacons[beacon_id]['noise_std'])                  # Ruido de medición estandar de cada baliza
+                y = z[i][1] - self.h_n(self.mu, self.beacons[beacon_id]['position']) + H @ self.mu_pred #Innovación
+                
+                self.omega_sum = self.omega_sum + np.transpose(H) @ np.linalg.inv(Q) @ H
+                self.xi_sum = self.xi_sum + np.transpose(H) @ np.linalg.inv(Q) @ y
             
-            self.omega_sum = self.omega_sum + np.transpose(H) @ np.linalg.inv(Q) @ H
-            self.xi_sum = self.xi_sum + np.transpose(H) @ np.linalg.inv(Q) @ y
+            # Actualizar la creencia de la localización
+            self.omega = self.omega_pred + self.omega_sum
+            self.xi = self.xi_pred + self.xi_sum
 
-        # Actualizar la creencia de la localización
-        self.omega = self.omega_pred + self.omega_sum
-        self.xi = self.xi_pred + self.xi_sum
-
+        except np.linalg.LinAlgError:
+            self.get_logger().warning("Singular matrix, filter cannot update")
+            return
+    
         # Resetear sumas
         self.xi_sum.fill(0)
         self.omega_sum.fill(0)
@@ -158,6 +171,17 @@ class EIFFilterNode(Node):
 
         self.predict_pub.publish(pose_msg)
 
+    def publish_stat(self,predict_time, update_time, filter_time, number_beacons):
+        s = ProcessStats()
+        s.header.stamp = self.get_clock().now().to_msg()
+        s.predict_time = predict_time
+        s.update_time = update_time
+        s.filter_time = filter_time
+
+        # Numero de medidas/calculos recibidos
+        s.measurements_received = number_beacons
+
+        self.stat_pub.publish(s)
 
 def main(args=None):
     rclpy.init(args=args)

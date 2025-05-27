@@ -6,4 +6,6 @@
 drone_control: [true, 'error']
 tf_manager: [true, 'error']
 visualization: [true, 'error']
-EIF_filter: [true, 'info']
+EIF_filter: [true, 'error']
+
+rosbag: true

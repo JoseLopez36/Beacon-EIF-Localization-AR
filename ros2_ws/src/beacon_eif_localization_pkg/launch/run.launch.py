@@ -1,7 +1,9 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import ExecuteProcess
 from ament_index_python.packages import get_package_share_directory
 import os
+from datetime import datetime
 import yaml
 
 def generate_launch_description():
@@ -12,6 +14,8 @@ def generate_launch_description():
     tf_manager_path = os.path.join(package_dir, 'config', 'tf_manager.yaml')
     visualization_path = os.path.join(package_dir, 'config', 'visualization.yaml')
     EIF_filter_path = os.path.join(package_dir, 'config', 'EIF_filter.yaml')
+
+    rosbags_path = os.path.join(package_dir, 'rosbags')
 
     # Cargar el archivo de configuración de los nodos
     launch_config_path = os.path.join(package_dir, 'config', 'launch.yaml')
@@ -96,6 +100,16 @@ def generate_launch_description():
                 output='screen',
                 arguments=['--ros-args', '--log-level', nodes['EIF_filter'][1]],
                 parameters=[system_path, EIF_filter_path, drone_control_path],
+            )
+        )
+
+    if launch.get('rosbag', True):
+        date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        rosbag_name = os.path.join(rosbags_path,f"experimento_{date}")
+        ld.add_action(
+            ExecuteProcess(
+                cmd=['ros2','bag','record','-o',rosbag_name, '/ground_truth/vehicle_odom', '/EIF_filter_node/predicted_position', '/EIF_filter_node/process_stats'],
+                output = 'screen'
             )
         )
 
