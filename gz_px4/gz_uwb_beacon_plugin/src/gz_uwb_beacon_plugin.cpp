@@ -550,6 +550,7 @@ namespace gz
 		// Evitaremos la propia baliza y el vehículo
 		std::vector<std::string> models_to_avoid;
 		models_to_avoid.push_back("ground_plane");
+		models_to_avoid.push_back("warehouse");
 		models_to_avoid.push_back("uwb_beacon_0");
 		models_to_avoid.push_back("uwb_beacon_1");
 		models_to_avoid.push_back("uwb_beacon_2");
