@@ -28,7 +28,7 @@ class EIFFilterDescentralizedNode(Node):
         # Parametros necesarios para los modelos
         self.horizontal_vel = self.get_parameter('horizontal_vel').value 
         self.vertical_vel = self.get_parameter('vertical_vel').value
-        self.valid_time_threshold = self.get_parameter('valid_time_threshold').value  
+        self.valid_time_threshold = self.get_parameter('valid_measurement_threshold').value  
         self.beacons_ids = self.get_parameter('beacons.ids').value 
         self.num_beacons = len(self.beacons_ids)
         self.beacons = {}
@@ -72,8 +72,8 @@ class EIFFilterDescentralizedNode(Node):
 
         #if self.beacon_id != "":
         for beacon_id in self.beacons_ids:
-            self.create_subscription(EIFInput,f"/uwb_beacon/{beacon_id}/eif_output", self.partial_innovation_callback, 10)
-        self.eif_output_pub =  self.create_publisher(EIFOutput,f"eif_input",10)
+            self.create_subscription(EIFOutput,f"/uwb_beacon/{beacon_id}/eif_output", self.partial_innovation_callback, 10)
+        self.eif_output_pub =  self.create_publisher(EIFInput,f"eif_input",10)
             
         # Temporizador para la frecuencia de actualización
         self.timer = self.create_timer(1.0 / self.filter_update_rate, self.estimate_localization)
@@ -96,16 +96,18 @@ class EIFFilterDescentralizedNode(Node):
 
             # Guardar la última medida de la baliza
             
-    def publish_eif_input(self, mu, mu_pred):
+    def publish_eif_input(self, mu, mu_pred) -> int:
+        self.get_logger().info("Enviando mensaje de input")
         input_msg = EIFInput() 
         now = self.get_clock().now()
         input_msg.header.stamp = now.to_msg()
-        input_msg.mu = mu
-        input_msg.mu_pred = mu_pred
+        input_msg.mu = mu.flatten().tolist()
+        input_msg.mu_predicted = mu_pred.flatten().tolist()
 
         self.calculations_event.set()
         self.eif_output_pub.publish(input_msg)
-        return now.nanoseconds, 
+
+        return now.nanoseconds
 
     def estimate_localization(self):
         self.get_logger().info("Estimando localización...")
@@ -115,12 +117,13 @@ class EIFFilterDescentralizedNode(Node):
         predic_time = (self.get_clock().now() - start).nanoseconds / 1e9
 
         # Mandar infomación a las valizas para que puedan realizar los calculos
-        self.last_broadcast = self.publish_eif_input(self.mu, self.mu_pred)
+        last_broadcast = self.publish_eif_input(self.mu, self.mu_pred)
 
-        while rclpy.ok() and self.calculations_event.is_set() and (self.get_clock().now().nanoseconds - self.last_broadcast) < self.valid_time_threshold:
+        while rclpy.ok() and self.calculations_event.is_set() and (self.get_clock().now().nanoseconds - last_broadcast) < self.valid_time_threshold:
             rclpy.spin_once(self, timeout_sec=0.1)
         self.calculations_event.clear()
-        innovation = self.calculations
+        with self.lock:
+            innovation = self.calculations
 
         with self.lock :
             self.calculations = []
@@ -130,6 +133,7 @@ class EIFFilterDescentralizedNode(Node):
         if len(innovation) == 0:
             self.get_logger().warning("No hay medidas válidas disponibles, no es posible actualizar predicción")
         else:   
+            self.get_logger().info(innovation)
             xi, omega = self.update(innovation)
         update_time = (self.get_clock().now() - start).nanoseconds / 1e9
 

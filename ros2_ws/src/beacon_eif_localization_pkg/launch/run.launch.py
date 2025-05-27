@@ -29,7 +29,7 @@ def generate_launch_description():
         'tf_manager': launch.get('tf_manager', [True, 'info']),
         'visualization': launch.get('visualization', [True, 'info']),
         'EIF_filter': launch.get('EIF_filter', [True, 'info']),
-        'EIF_filter_descentralized': launch.get('EIF_filter', [True, 'info'])
+        'EIF_filter_descentralized': launch.get('EIF_filter_descentralized', [True, 'info'])
     }
 
     # Inicializar la descripción de la lanzamiento
@@ -122,7 +122,7 @@ def generate_launch_description():
         print(rosbag_name)
         ld.add_action(
             ExecuteProcess(
-                cmd=['ros2','bag','record','-o',rosbag_name, '/ground_truth/vehicle_odom', '/EIF_filter_node/predicted_position', '/EIF_filter_node/process_stats'],
+                cmd=['ros2','bag','record','-o',rosbag_name, '/ground_truth/vehicle_odom', '/EIF_filter_node/predicted_position', '/EIF_filter_node/process_stats','/EIF_filter_descentralized_node/predicted_position', '/EIF_filter_descentralized_node/process_stats'],
                 output = 'screen'
             )
         )
