@@ -3,7 +3,7 @@
 # Enable: true launches the node, false does not
 # Log levels: debug, info, warn, error, fatal
 
-drone_control: [true, 'info']
-tf_manager: [true, 'info']
-visualization: [true, 'info']
+drone_control: [true, 'error']
+tf_manager: [true, 'error']
+visualization: [true, 'error']
 EIF_filter: [true, 'info']

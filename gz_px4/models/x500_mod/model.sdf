@@ -88,46 +88,46 @@
       <update_rate>25</update_rate>
       <beacon_name>uwb_beacon_0</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>1</beacon_mode>
+      <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.004</beacon_noise_std_eif>
-      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
+      <beacon_noise_std_eif>0.1</beacon_noise_std_eif>
+      <nlos_soft_wall_width>0.5</nlos_soft_wall_width>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>25</update_rate>
       <beacon_name>uwb_beacon_1</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>1</beacon_mode>
+      <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.004</beacon_noise_std_eif>
-      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
+      <beacon_noise_std_eif>0.1</beacon_noise_std_eif>
+      <nlos_soft_wall_width>0.5</nlos_soft_wall_width>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>25</update_rate>
       <beacon_name>uwb_beacon_2</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>1</beacon_mode>
+      <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.004</beacon_noise_std_eif>
-      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
+      <beacon_noise_std_eif>0.1</beacon_noise_std_eif>
+      <nlos_soft_wall_width>0.5</nlos_soft_wall_width>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>25</update_rate>
       <beacon_name>uwb_beacon_3</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>1</beacon_mode>
+      <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.004</beacon_noise_std_eif>
-      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
+      <beacon_noise_std_eif>0.1</beacon_noise_std_eif>
+      <nlos_soft_wall_width>0.5</nlos_soft_wall_width>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>25</update_rate>
       <beacon_name>uwb_beacon_4</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>1</beacon_mode>
+      <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.004</beacon_noise_std_eif>
-      <nlos_soft_wall_width>0.25</nlos_soft_wall_width>
+      <beacon_noise_std_eif>0.1</beacon_noise_std_eif>
+      <nlos_soft_wall_width>0.5</nlos_soft_wall_width>
     </plugin>
 
   </model>

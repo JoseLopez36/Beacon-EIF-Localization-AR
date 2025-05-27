@@ -76,7 +76,7 @@ class TFManagerNode(Node):
         t.transform.translation.y = 0.0
         t.transform.translation.z = 0.0
         
-        # Establecer orientación
+        # Establecer orientación (identidad)
         t.transform.rotation.w = 1.0
         t.transform.rotation.x = 0.0
         t.transform.rotation.y = 0.0

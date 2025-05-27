@@ -326,64 +326,65 @@ namespace gz
 		visualization_msgs::msg::MarkerArray markers;
 
 		// Marcador para el cuerpo de la baliza (cilindro central)
-		visualization_msgs::msg::Marker body;
-		body.header.frame_id = "map";
-		body.header.stamp = ros_clock_.now();
-		body.id = beacon_params_.id * 4;
-		body.type = visualization_msgs::msg::Marker::CYLINDER;
-		body.action = visualization_msgs::msg::Marker::ADD;
-		body.pose.position.x = beacon_params_.pose.Pos().X();
-		body.pose.position.y = beacon_params_.pose.Pos().Y();
-		body.pose.position.z = beacon_params_.pose.Pos().Z() - 0.25;
-		body.pose.orientation.x = beacon_params_.pose.Rot().X();
-		body.pose.orientation.y = beacon_params_.pose.Rot().Y();
-		body.pose.orientation.z = beacon_params_.pose.Rot().Z();
-		body.pose.orientation.w = beacon_params_.pose.Rot().W();
-		body.scale.x = 0.25;
-		body.scale.y = 0.25;
-		body.scale.z = 0.5;
-		body.color.a = 1.0;
-		body.color.r = 0.0;
-		body.color.g = 0.0;
-		body.color.b = 1.0;
-		markers.markers.push_back(body);
+		// visualization_msgs::msg::Marker body;
+		// body.header.frame_id = "map";
+		// body.header.stamp = ros_clock_.now();
+		// body.id = 0;
+		// body.type = visualization_msgs::msg::Marker::CYLINDER;
+		// body.action = visualization_msgs::msg::Marker::ADD;
+		// body.pose.position.x = beacon_params_.pose.Pos().X();
+		// body.pose.position.y = beacon_params_.pose.Pos().Y();
+		// body.pose.position.z = beacon_params_.pose.Pos().Z() - 0.25;
+		// body.pose.orientation.x = beacon_params_.pose.Rot().X();
+		// body.pose.orientation.y = beacon_params_.pose.Rot().Y();
+		// body.pose.orientation.z = beacon_params_.pose.Rot().Z();
+		// body.pose.orientation.w = beacon_params_.pose.Rot().W();
+		// body.scale.x = 0.25;
+		// body.scale.y = 0.25;
+		// body.scale.z = 0.5;
+		// body.color.a = 1.0;
+		// body.color.r = 0.0;
+		// body.color.g = 0.0;
+		// body.color.b = 1.0;
+		// markers.markers.push_back(body);
 
 		// Marcador para la base de la baliza (cilindro más grueso)
-		visualization_msgs::msg::Marker base;
-		base.header = body.header;
-		base.id = beacon_params_.id * 4 + 1;
-		base.type = visualization_msgs::msg::Marker::CYLINDER;
-		base.action = visualization_msgs::msg::Marker::ADD;
-		base.pose = body.pose;
-		base.pose.position.z = beacon_params_.pose.Pos().Z() - 0.5;
-		base.scale.x = 0.4;
-		base.scale.y = 0.4;
-		base.scale.z = 0.2;
-		base.color = body.color;
-		markers.markers.push_back(base);
+		// visualization_msgs::msg::Marker base;
+		// base.header = body.header;
+		// base.id = 1;
+		// base.type = visualization_msgs::msg::Marker::CYLINDER;
+		// base.action = visualization_msgs::msg::Marker::ADD;
+		// base.pose = body.pose;
+		// base.pose.position.z = beacon_params_.pose.Pos().Z() - 0.5;
+		// base.scale.x = 0.4;
+		// base.scale.y = 0.4;
+		// base.scale.z = 0.2;
+		// base.color = body.color;
+		// markers.markers.push_back(base);
 
 		// Marcador para la esfera superior (origen de la baliza)
-		visualization_msgs::msg::Marker sphere;
-		sphere.header = body.header;
-		sphere.id = beacon_params_.id * 4 + 2;
-		sphere.type = visualization_msgs::msg::Marker::SPHERE;
-		sphere.action = visualization_msgs::msg::Marker::ADD;
-		sphere.pose = body.pose;
-		sphere.pose.position.z = beacon_params_.pose.Pos().Z();
-		sphere.scale.x = 0.4;
-		sphere.scale.y = 0.4;
-		sphere.scale.z = 0.4;
-		sphere.color = body.color;
-		markers.markers.push_back(sphere);
+		// visualization_msgs::msg::Marker sphere;
+		// sphere.header = body.header;
+		// sphere.id = 2;
+		// sphere.type = visualization_msgs::msg::Marker::SPHERE;
+		// sphere.action = visualization_msgs::msg::Marker::ADD;
+		// sphere.pose = body.pose;
+		// sphere.pose.position.z = beacon_params_.pose.Pos().Z();
+		// sphere.scale.x = 0.4;
+		// sphere.scale.y = 0.4;
+		// sphere.scale.z = 0.4;
+		// sphere.color = body.color;
+		// markers.markers.push_back(sphere);
 
 		// Marcador para la línea entre la baliza y el vehículo (LOS)
 		visualization_msgs::msg::Marker los_line;
-		los_line.header = body.header;
-		los_line.id = beacon_params_.id * 4 + 3;
+		los_line.header.frame_id = "map";
+		los_line.header.stamp = ros_clock_.now();
+		los_line.id = 3;
 		los_line.type = visualization_msgs::msg::Marker::LINE_STRIP;
 		los_line.action = visualization_msgs::msg::Marker::ADD;
 		los_line.pose.orientation.w = 1.0;
-		los_line.scale.x = 0.03;  // Grosor de la línea
+		los_line.scale.x = 0.1;  // Grosor de la línea
 		los_line.color.a = 1.0;
 
 		// Añadir los puntos de la línea

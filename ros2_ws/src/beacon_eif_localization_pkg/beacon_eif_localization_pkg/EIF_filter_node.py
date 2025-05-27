@@ -86,7 +86,7 @@ class EIFFilterNode(Node):
 
     def estimate_localization(self):
         try:
-            self.get_logger().info("Estimando localización...")
+            self.get_logger().debug("Estimando localización...")
             
             self.predict()
 
