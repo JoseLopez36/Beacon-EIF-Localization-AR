@@ -5,9 +5,6 @@ import numpy as np
 from rclpy.node import Node
 from visualization_msgs.msg import Marker
 
-# Importar mensajes de beacon_eif_localization_msgs
-from beacon_eif_localization_msgs.msg import DroneSetpoint
-
 class VisualizationNode(Node):
 
     def __init__(self):
@@ -17,16 +14,11 @@ class VisualizationNode(Node):
         self.get_logger().info("Iniciando nodo de visualizacion...")
 
         # Crear suscriptores
-        self.vehicle_setpoint_sub = self.create_subscription(DroneSetpoint, '/setpoint/vehicle_position', self.vehicle_setpoint_callback, 10)
 
         # Crear publicadores
-        self.vehicle_setpoint_pub = self.create_publisher(Marker, '/visualization/vehicle_setpoint', 10)
 
         # Obtener parámetros del archivo de configuración
         update_rate = self.declare_parameter('update_rate', 20.0).value
-
-        # Declarar variables
-        self.vehicle_setpoint = np.array([0.0, 0.0, 0.0])
 
         # Crear timer para la actualización de la visualización
         self.dt = 1.0 / update_rate
@@ -35,38 +27,9 @@ class VisualizationNode(Node):
         # Log
         self.get_logger().info("Nodo de visualizacion iniciado")
 
-    def vehicle_setpoint_callback(self, msg):
-        # Setpoint en ENU
-        self.vehicle_setpoint = [msg.x, msg.y, msg.z]
-
     def update(self):
-        # Publicar marcador de punto para setpoint
-        vehicle_setpoint_msg = self.create_point_marker(1, self.vehicle_setpoint)
-        self.vehicle_setpoint_pub.publish(vehicle_setpoint_msg)
-
-    def create_point_marker(self, id, position):
-        msg = Marker()
-        msg.action = Marker.ADD
-        msg.header.frame_id = 'map'
-        msg.ns = 'point'
-        msg.id = id
-        msg.type = Marker.SPHERE
-        msg.scale.x = 1.25
-        msg.scale.y = 1.25
-        msg.scale.z = 1.25
-        # Yellow color
-        msg.color.r = 1.0
-        msg.color.g = 1.0
-        msg.color.b = 0.0
-        msg.color.a = 1.0
-        msg.pose.position.x = position[0];
-        msg.pose.position.y = position[1];
-        msg.pose.position.z = position[2];
-        msg.pose.orientation.x = 0.0;
-        msg.pose.orientation.y = 0.0;
-        msg.pose.orientation.z = 0.0;
-        msg.pose.orientation.w = 1.0;
-        return msg
+        # Nada que hacer
+        pass
 
 def main(args=None):
     rclpy.init(args=args)

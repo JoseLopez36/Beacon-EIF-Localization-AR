@@ -5,9 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /TF1/Frames1
-        - /Beacon01/Status1
         - /Beacon01/Topic1
-        - /Pose1
       Splitter Ratio: 0.5
     Tree Height: 852
   - Class: rviz_common/Selection
@@ -19,8 +17,7 @@ Panels:
     Name: Tool Properties
     Splitter Ratio: 0.5886790156364441
   - Class: rviz_common/Views
-    Expanded:
-      - /Current View1
+    Expanded: ~
     Name: Views
     Splitter Ratio: 0.5
   - Class: rviz_common/Time
@@ -78,37 +75,23 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        global:
-          local:
-            body:
-              {}
-          uwb_beacon_0:
-            {}
-          uwb_beacon_1:
-            {}
-          uwb_beacon_2:
-            {}
-          uwb_beacon_3:
-            {}
-          uwb_beacon_4:
-            {}
         map:
-          {}
+          global:
+            local:
+              body:
+                {}
+            uwb_beacon_0:
+              {}
+            uwb_beacon_1:
+              {}
+            uwb_beacon_2:
+              {}
+            uwb_beacon_3:
+              {}
+            uwb_beacon_4:
+              {}
       Update Interval: 0
       Value: true
-    - Class: rviz_default_plugins/Marker
-      Enabled: false
-      Name: Setpoint
-      Namespaces:
-        {}
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /visualization/vehicle_setpoint
-      Value: false
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
       Name: Beacon0

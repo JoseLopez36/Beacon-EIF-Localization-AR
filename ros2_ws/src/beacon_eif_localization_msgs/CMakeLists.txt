@@ -15,8 +15,8 @@ find_package(sensor_msgs REQUIRED)
 
 # Generate interfaces
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/DroneSetpoint.msg"
-  DEPENDENCIES std_msgs geometry_msgs sensor_msgs
+  "msg/Example.msg"
+  DEPENDENCIES std_msgs geometry_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)
