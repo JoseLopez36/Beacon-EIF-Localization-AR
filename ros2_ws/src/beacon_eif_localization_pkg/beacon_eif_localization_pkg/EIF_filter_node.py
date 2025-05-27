@@ -5,7 +5,7 @@ from rclpy.node import Node
 from rclpy.time import Time
 import numpy as np
 from threading import Lock
-from geometry_msgs.msg import PoseStamped 
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped 
 
 # Importar el modelos
 from .EIF_models import g_function, G_jacobian, h_function_n, H_jacobian_n, R_noise_model, Q_noise_model_n
@@ -47,6 +47,7 @@ class EIFFilterNode(Node):
         self.omega = np.eye(3, dtype=np.float64)                           # Matriz de información
         self.xi    = np.array([[0],[0],[0]],dtype=np.float64)                   # Vector de información 
         self.mu    = np.array([[0],[0],[0]],dtype=np.float64)                   # vector media del estado estimado
+        self.covariance = np.eye(3, dtype=np.float64)                       # Matriz de covarianza, calculada para visualización y calculo de mu
 
         # Variables de resultado de predicción
         self.omega_pred = np.eye(3, dtype=np.float64)                           
@@ -62,7 +63,7 @@ class EIFFilterNode(Node):
         self.last_measurements = [[beacon_id, None, None] for beacon_id in self.beacons_ids] # Lista de medidas de balizas [id, distancia, timestamp]
 
         # Subscriptores y publicadores
-        self.predict_pub = self.create_publisher(PoseStamped,f"/{self.get_name()}/predicted_position", self.num_beacons)   
+        self.predict_pub = self.create_publisher(PoseWithCovarianceStamped,f"/{self.get_name()}/predicted_position", self.num_beacons)   
         self.stat_pub = self.create_publisher(ProcessStats,f"/{self.get_name()}/process_stats",10)
 
         #if self.beacon_id != "":
@@ -106,11 +107,18 @@ class EIFFilterNode(Node):
         else:   
             xi, omega = self.update(z)
         update_time = (self.get_clock().now() - start).nanoseconds / 1e9
+        
+        try:
+            self.covariance = np.linalg.inv(self.omega)
+        except np.linalg.LinAlgError:
+            self.get_logger().warning("Singular matrix, filter cannot calculate covariance")
+        
+        
         with self.lock:
-            self.publish_estimation(self.xi, self.omega) # Publicar estimación de localización
+            self.publish_estimation(self.xi, self.covariance) # Publicar estimación de localización
         filter_time = (self.get_clock().now() - start_filter).nanoseconds / 1e9
 
-        self.publish_stat(predic_time,update_time,filter_time,len(z))
+        self.publish_stat(predic_time,update_time,filter_time,len(z),self.omega, self.xi)
 
         return self.mu, self.omega, self.xi
 
@@ -157,29 +165,40 @@ class EIFFilterNode(Node):
 
         return self.xi, self.omega
 
-    def publish_estimation(self, xi, omega):
+    def publish_estimation(self, xi, covariance):
         # Publicar la estimación de localización
-        pose_msg = PoseStamped()
+        pose_msg = PoseWithCovarianceStamped()
         pose_msg.header.stamp = self.get_clock().now().to_msg()
         pose_msg.header.frame_id = "global"
 
-        mu = np.linalg.inv(omega) @ xi
+        print(covariance)
+        mu = covariance @ xi
 
-        pose_msg.pose.position.x = mu[0][0]
-        pose_msg.pose.position.y = mu[1][0]
-        pose_msg.pose.position.z = mu[2][0]
+        pose_msg.pose.pose.position.x = mu[0][0]
+        pose_msg.pose.pose.position.y = mu[1][0]
+        pose_msg.pose.pose.position.z = mu[2][0]
+
+        full_covariance = np.zeros((6,6))
+        full_covariance[:3,:3] = covariance
+
+        pose_msg.pose.covariance = full_covariance.flatten().tolist()
 
         self.predict_pub.publish(pose_msg)
 
-    def publish_stat(self,predict_time, update_time, filter_time, number_beacons):
+    def publish_stat(self,predict_time, update_time, filter_time, number_beacons, omega, xi):
         s = ProcessStats()
         s.header.stamp = self.get_clock().now().to_msg()
+        #Tiempos de ejecucion
         s.predict_time = predict_time
         s.update_time = update_time
         s.filter_time = filter_time
 
         # Numero de medidas/calculos recibidos
         s.measurements_received = number_beacons
+
+        # Informacion:
+        s.omega = omega.flatten().tolist()
+        s.xi = xi.flatten().tolist()
 
         self.stat_pub.publish(s)
 

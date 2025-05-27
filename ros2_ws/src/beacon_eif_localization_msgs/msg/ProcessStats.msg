@@ -2,9 +2,13 @@
 std_msgs/Header header
 
 # Tiempos de ejecución - ns
-float32 predict_time
-float32 update_time
-float32 filter_time
+float64 predict_time
+float64 update_time
+float64 filter_time
 
 # Numero de medidas/calculos recibidos
 int32 measurements_received
+
+# Matriz y vector de informacion
+float64[9] omega
+float64[3] xi

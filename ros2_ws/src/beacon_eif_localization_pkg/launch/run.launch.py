@@ -106,6 +106,7 @@ def generate_launch_description():
     if launch.get('rosbag', True):
         date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         rosbag_name = os.path.join(rosbags_path,f"experimento_{date}")
+        print(rosbag_name)
         ld.add_action(
             ExecuteProcess(
                 cmd=['ros2','bag','record','-o',rosbag_name, '/ground_truth/vehicle_odom', '/EIF_filter_node/predicted_position', '/EIF_filter_node/process_stats'],
