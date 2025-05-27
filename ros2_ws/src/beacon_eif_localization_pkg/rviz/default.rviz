@@ -92,6 +92,26 @@ Visualization Manager:
               {}
       Update Interval: 0
       Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz_default_plugins/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 1.5
+      Head Radius: 0.5
+      Name: Pose
+      Shaft Length: 5
+      Shaft Radius: 0.25
+      Shape: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /predicted_position
+      Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
       Name: Beacon0
@@ -152,25 +172,29 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /uwb_beacon/uwb_beacon_4/markers
       Value: true
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz_default_plugins/Pose
-      Color: 255; 25; 0
+    - Class: rviz_default_plugins/MarkerArray
       Enabled: true
-      Head Length: 1.5
-      Head Radius: 0.5
-      Name: Pose
-      Shaft Length: 5
-      Shaft Radius: 0.25
-      Shape: Arrow
+      Name: Beacon5
+      Namespaces:
+        "": true
       Topic:
         Depth: 5
         Durability Policy: Volatile
-        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /predicted_position
+        Value: /uwb_beacon/uwb_beacon_5/markers
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Beacon6
+      Namespaces:
+        "": true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /uwb_beacon/uwb_beacon_6/markers
       Value: true
   Enabled: true
   Global Options:
