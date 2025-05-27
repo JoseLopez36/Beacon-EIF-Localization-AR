@@ -1,5 +1,7 @@
-# Posición estimada del vehículo (m)
+std_msgs/Header header
+
+# Posición estimada del vehículo
 float64[3] mu
 
-# Posición predicha del vehículo (m)
+# Posición predicha del vehículo
 float64[3] mu_predicted

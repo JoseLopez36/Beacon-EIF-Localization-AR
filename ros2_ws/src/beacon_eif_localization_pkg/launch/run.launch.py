@@ -28,7 +28,8 @@ def generate_launch_description():
         'drone_control': launch.get('drone_control', [True, 'info']),
         'tf_manager': launch.get('tf_manager', [True, 'info']),
         'visualization': launch.get('visualization', [True, 'info']),
-        'EIF_filter': launch.get('EIF_filter', [True, 'info'])
+        'EIF_filter': launch.get('EIF_filter', [True, 'info']),
+        'EIF_filter_descentralized': launch.get('EIF_filter', [True, 'info'])
     }
 
     # Inicializar la descripción de la lanzamiento
@@ -99,6 +100,18 @@ def generate_launch_description():
                 #name='EIF_filter_node',
                 output='screen',
                 arguments=['--ros-args', '--log-level', nodes['EIF_filter'][1]],
+                parameters=[system_path, EIF_filter_path, drone_control_path],
+            )
+        )
+
+    if nodes['EIF_filter_descentralized'][0]:
+        ld.add_action(
+            Node(
+                package='beacon_eif_localization_pkg',
+                executable='EIF_filter_descentralized_node',
+                #name='EIF_filter_node',
+                output='screen',
+                arguments=['--ros-args', '--log-level', nodes['EIF_filter_descentralized'][1]],
                 parameters=[system_path, EIF_filter_path, drone_control_path],
             )
         )
