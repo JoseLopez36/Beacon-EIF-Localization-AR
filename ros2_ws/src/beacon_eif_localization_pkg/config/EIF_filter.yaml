@@ -1,5 +1,4 @@
 /**:
   ros__parameters:
-    filter_update_rate: 10.0    # Hz  
+    filter_update_rate: 10.0    # Hz
     valid_measurement_threshold: 30000000    # ns
-    
