@@ -81,7 +81,9 @@ class EIFFilterDescentralizedNode(Node):
         self.get_logger().info("Nodo de filtro EIF descentralizado iniciado")
 
     def partial_innovation_callback(self, beacon_output_msg):
+        self.get_logger().info('Resultado recivido')
         if self.calculations_event.is_set():
+            self.get_logger().info('Resultado guardado')
             beacon_id = beacon_output_msg.id
             xi_n = beacon_output_msg.xi
             omega_n = beacon_output_msg.omega
@@ -94,7 +96,6 @@ class EIFFilterDescentralizedNode(Node):
             if self.calculations_received == self.num_beacons:
                 self.calculations_event.clear()
 
-            # Guardar la última medida de la baliza
             
     def publish_eif_input(self, mu, mu_pred) -> int:
         self.get_logger().info("Enviando mensaje de input")
@@ -117,10 +118,13 @@ class EIFFilterDescentralizedNode(Node):
         predic_time = (self.get_clock().now() - start).nanoseconds / 1e9
 
         # Mandar infomación a las valizas para que puedan realizar los calculos
+        self.get_logger().info('Enviando petición a todas las balizad')
+        start =  self.get_clock().now()
         last_broadcast = self.publish_eif_input(self.mu, self.mu_pred)
-
+      
         while rclpy.ok() and self.calculations_event.is_set() and (self.get_clock().now().nanoseconds - last_broadcast) < self.valid_time_threshold:
-            rclpy.spin_once(self, timeout_sec=0.1)
+            rclpy.spin_once(self, timeout_sec=0.01)
+        self.get_logger().info('Procesando resultados obtenidos')
         self.calculations_event.clear()
         with self.lock:
             innovation = self.calculations
@@ -129,7 +133,6 @@ class EIFFilterDescentralizedNode(Node):
             self.calculations = []
             self.calculations_received = 0
 
-        start =  self.get_clock().now()
         if len(innovation) == 0:
             self.get_logger().warning("No hay medidas válidas disponibles, no es posible actualizar predicción")
         else:   
