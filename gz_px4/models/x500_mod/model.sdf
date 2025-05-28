@@ -92,6 +92,7 @@
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
+      <max_db_distance>30.0</max_db_distance>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>50</update_rate>
@@ -101,6 +102,7 @@
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
+      <max_db_distance>30.0</max_db_distance>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>50</update_rate>
@@ -110,6 +112,7 @@
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
+      <max_db_distance>30.0</max_db_distance>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>50</update_rate>
@@ -119,6 +122,7 @@
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
+      <max_db_distance>30.0</max_db_distance>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>50</update_rate>
@@ -128,6 +132,7 @@
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
+      <max_db_distance>30.0</max_db_distance>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>50</update_rate>
@@ -137,6 +142,7 @@
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
+      <max_db_distance>30.0</max_db_distance>
     </plugin>
     <plugin name='gz::GzUwbBeaconPlugin' filename='libgz_uwb_beacon_plugin.so'>
       <update_rate>50</update_rate>
@@ -146,6 +152,7 @@
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
+      <max_db_distance>30.0</max_db_distance>
     </plugin>
 
   </model>
