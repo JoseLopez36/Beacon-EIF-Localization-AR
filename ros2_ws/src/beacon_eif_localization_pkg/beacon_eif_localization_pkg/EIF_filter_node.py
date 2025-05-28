@@ -203,9 +203,9 @@ class EIFFilterNode(Node):
         s.predicted_position.z = mu[2][0]
 
         #Ground_truth
-        s.ground_truth.x = gt[0]
-        s.ground_truth.y = gt[1]
-        s.ground_truth.z = gt[2]
+        s.ground_truth.x = gt.x
+        s.ground_truth.y = gt.y
+        s.ground_truth.z = gt.z
 
         #Tiempos de ejecucion
         s.predict_time = predict_time
