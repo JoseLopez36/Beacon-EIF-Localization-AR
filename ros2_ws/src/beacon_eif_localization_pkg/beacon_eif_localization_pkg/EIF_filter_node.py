@@ -6,6 +6,7 @@ from rclpy.time import Time
 import numpy as np
 from threading import Lock
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped 
+from nav_msgs.msg import Odometry
 
 # Importar el modelos
 from .EIF_models import g_function, G_jacobian, h_function_n, H_jacobian_n, R_noise_model, Q_noise_model_n
@@ -67,6 +68,7 @@ class EIFFilterNode(Node):
         self.predict_pub = self.create_publisher(PoseWithCovarianceStamped,f"/{self.get_name()}/predicted_position", self.num_beacons)   
         self.stat_pub = self.create_publisher(ProcessStats,f"/{self.get_name()}/process_stats",10)
 
+        self.truth_sub = self.create_subscription(Odometry,f"/ground_truth/vehicle_odom",self.ground_truth_callback, 30) 
         #if self.beacon_id != "":
         for beacon_id in self.beacons_ids:
             self.create_subscription(Measurement, f'/uwb_beacon/{beacon_id}/measurement', self.beacon_measurements_callback, 10)
@@ -120,11 +122,10 @@ class EIFFilterNode(Node):
             self.publish_estimation(self.xi, self.covariance) # Publicar estimación de localización
         filter_time = (self.get_clock().now() - start_filter).nanoseconds / 1e9
 
-        self.publish_stat(predic_time,update_time,filter_time,len(z),self.omega, self.xi)
+        with self.lock:
+            self.publish_stat(predic_time,update_time,filter_time,len(z),self.omega, self.xi, self.mu,self.ground_truth)
 
         return self.mu, self.omega, self.xi
-
-
 
     def predict(self):
         try:
@@ -187,9 +188,25 @@ class EIFFilterNode(Node):
 
         self.predict_pub.publish(pose_msg)
 
-    def publish_stat(self,predict_time, update_time, filter_time, number_beacons, omega, xi):
+    def ground_truth_callback(self,odom_msg):
+        with self.lock:
+            self.ground_truth = odom_msg.pose.pose.position
+
+
+    def publish_stat(self,predict_time, update_time, filter_time, number_beacons, omega, xi, mu, gt):
         s = ProcessStats()
         s.header.stamp = self.get_clock().now().to_msg()
+
+        #Prediccion:
+        s.predicted_position.x = mu[0][0]
+        s.predicted_position.y = mu[1][0]
+        s.predicted_position.z = mu[2][0]
+
+        #Ground_truth
+        s.ground_truth.x = gt[0]
+        s.ground_truth.y = gt[1]
+        s.ground_truth.z = gt[2]
+
         #Tiempos de ejecucion
         s.predict_time = predict_time
         s.update_time = update_time
