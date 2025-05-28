@@ -3,12 +3,10 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.executors import SingleThreadedExecutor
-from rclpy.guard_condition import GuardCondition
-from message_filters import ApproximateTimeSynchronizer
 import numpy as np
 from threading import Lock, Event
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped 
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped , Point
+from nav_msgs.msg import Odometry
 
 # Importar el modelos
 from .EIF_models import g_function, G_jacobian, h_function_n, H_jacobian_n, R_noise_model, Q_noise_model_n
@@ -30,6 +28,7 @@ class EIFFilterDescentralizedNode(Node):
         # Parametros necesarios para los modelos
         self.horizontal_vel = self.get_parameter('horizontal_vel').value 
         self.vertical_vel = self.get_parameter('vertical_vel').value
+        self.initial_covariance = self.get_parameter('initial_covariance').value
         self.valid_time_threshold = self.get_parameter('valid_measurement_threshold').value 
         self.beacons_ids = self.get_parameter('beacons.ids').value 
         self.num_beacons = len(self.beacons_ids)
@@ -47,10 +46,11 @@ class EIFFilterDescentralizedNode(Node):
         self.R = R_noise_model(self.horizontal_vel, self.vertical_vel, 1.0 / self.filter_update_rate)                  # Ruido de proceso
 
         # Variables para la creencia de la localizacion en forma canónica
-        self.omega = np.eye(3, dtype=np.float64)                           # Matriz de información
+        self.omega = (1.0/self.initial_covariance)*np.eye(3, dtype=np.float64)                           # Matriz de información
         self.xi    = np.array([[0],[0],[0]],dtype=np.float64)                   # Vector de información 
-        self.mu    = np.array([[0],[0],[0]],dtype=np.float64)                      # vector media del estado estimado
-        self.covariance = np.eye(3, dtype=np.float64)                  
+        self.mu    = np.array([[0],[0],[0]],dtype=np.float64) 
+        self.ground_truth  = Point()               # vector media del estado estimado
+        self.covariance = self.initial_covariance*np.eye(3, dtype=np.float64)                  
 
         # Variables de resultado de predicción
         self.omega_pred = np.eye(3, dtype=np.float64)                           
@@ -71,6 +71,7 @@ class EIFFilterDescentralizedNode(Node):
         self.predict_pub = self.create_publisher(PoseWithCovarianceStamped,f"/{self.get_name()}/predicted_position", self.num_beacons)     
         self.stat_pub = self.create_publisher(ProcessStats,f"/{self.get_name()}/process_stats",10)
 
+        self.truth_sub = self.create_subscription(Odometry,f"/ground_truth/vehicle_odom",self.ground_truth_callback, 30) 
         #if self.beacon_id != "":
         for beacon_id in self.beacons_ids:
             self.create_subscription(EIFOutput,f"/uwb_beacon/{beacon_id}/eif_output", self.partial_innovation_callback, 10)
@@ -124,11 +125,12 @@ class EIFFilterDescentralizedNode(Node):
         last_broadcast = self.publish_eif_input(self.mu, self.mu_pred)
       
         while rclpy.ok() and self.calculations_event.is_set():
+            self.get_logger().warning("esperando")
             now = self.get_clock().now().nanoseconds
             if now - last_broadcast > self.valid_time_threshold:
                 self.get_logger().info("Timeout alcanzado")
                 break
-            rclpy.spin_once(self, timeout_sec=0.02)
+            rclpy.spin_once(self, timeout_sec=0.1)
         
         self.get_logger().info('Procesando resultados obtenidos')
         self.calculations_event.clear()
@@ -157,7 +159,7 @@ class EIFFilterDescentralizedNode(Node):
         filter_time = (self.get_clock().now() - start_filter).nanoseconds / 1e9
 
         with self.lock:
-            self.publish_stat(predic_time,update_time,filter_time,len(z),self.omega, self.xi, self.mu,self.ground_truth)
+            self.publish_stat(predic_time,update_time,filter_time,len(innovation),self.omega, self.xi, self.mu,self.ground_truth)
 
         return self.mu, self.omega, self.xi
 
@@ -231,8 +233,8 @@ class EIFFilterDescentralizedNode(Node):
         s.predicted_position.z = mu[2][0]
 
         #Ground_truth
-        s.ground_truth.x = gt.x
-        s.ground_truth.y = gt.y
+        s.ground_truth.x = gt[0]
+        s.ground_truth.y = gt[]
         s.ground_truth.z = gt.z
 
         #Tiempos de ejecucion
