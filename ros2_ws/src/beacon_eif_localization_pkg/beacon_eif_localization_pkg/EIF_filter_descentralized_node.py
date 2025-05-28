@@ -156,7 +156,8 @@ class EIFFilterDescentralizedNode(Node):
             self.publish_estimation(self.xi, self.covariance) # Publicar estimación de localización
         filter_time = (self.get_clock().now() - start_filter).nanoseconds / 1e9
 
-        self.publish_stat(predic_time,update_time,filter_time,len(innovation),self.omega, self.xi)
+        with self.lock:
+            self.publish_stat(predic_time,update_time,filter_time,len(z),self.omega, self.xi, self.mu,self.ground_truth)
 
         return self.mu, self.omega, self.xi
 
@@ -215,9 +216,25 @@ class EIFFilterDescentralizedNode(Node):
 
         self.predict_pub.publish(pose_msg)
 
-    def publish_stat(self,predict_time, update_time, filter_time, number_beacons, omega, xi):
+    def ground_truth_callback(self,odom_msg):
+        with self.lock:
+            self.ground_truth = odom_msg.pose.pose.position
+
+
+    def publish_stat(self,predict_time, update_time, filter_time, number_beacons, omega, xi, mu, gt):
         s = ProcessStats()
         s.header.stamp = self.get_clock().now().to_msg()
+
+        #Prediccion:
+        s.predicted_position.x = mu[0][0]
+        s.predicted_position.y = mu[1][0]
+        s.predicted_position.z = mu[2][0]
+
+        #Ground_truth
+        s.ground_truth.x = gt.x
+        s.ground_truth.y = gt.y
+        s.ground_truth.z = gt.z
+
         #Tiempos de ejecucion
         s.predict_time = predict_time
         s.update_time = update_time
@@ -231,6 +248,7 @@ class EIFFilterDescentralizedNode(Node):
         s.xi = xi.flatten().tolist()
 
         self.stat_pub.publish(s)
+
 
 def main(args=None):
     rclpy.init(args=args)
