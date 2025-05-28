@@ -90,7 +90,7 @@
       <tag_id>0</tag_id>
       <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
+      <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
       <max_db_distance>30.0</max_db_distance>
     </plugin>
@@ -100,7 +100,7 @@
       <tag_id>0</tag_id>
       <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
+      <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
       <max_db_distance>30.0</max_db_distance>
     </plugin>
@@ -110,7 +110,7 @@
       <tag_id>0</tag_id>
       <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
+      <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
       <max_db_distance>30.0</max_db_distance>
     </plugin>
@@ -120,7 +120,7 @@
       <tag_id>0</tag_id>
       <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
+      <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
       <max_db_distance>30.0</max_db_distance>
     </plugin>
@@ -130,7 +130,7 @@
       <tag_id>0</tag_id>
       <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
+      <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
       <max_db_distance>30.0</max_db_distance>
     </plugin>
@@ -140,7 +140,7 @@
       <tag_id>0</tag_id>
       <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
+      <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
       <max_db_distance>30.0</max_db_distance>
     </plugin>
@@ -150,7 +150,7 @@
       <tag_id>0</tag_id>
       <beacon_mode>0</beacon_mode>
       <reception_probability>0.95</reception_probability>
-      <beacon_noise_std_eif>0.3</beacon_noise_std_eif>
+      <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
       <max_db_distance>30.0</max_db_distance>
     </plugin>
