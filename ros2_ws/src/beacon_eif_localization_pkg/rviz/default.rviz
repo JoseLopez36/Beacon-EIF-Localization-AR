@@ -9,8 +9,9 @@ Panels:
         - /PoseWithCovariance1
         - /PoseWithCovariance1/Covariance1
         - /PoseWithCovariance1/Covariance1/Position1
-        - /Odometry1
         - /Odometry1/Shape1
+        - /PoseWithCovariance2
+        - /PoseWithCovariance2/Covariance1/Position1
       Splitter Ratio: 0.5
     Tree Height: 858
   - Class: rviz_common/Selection
@@ -63,47 +64,13 @@ Visualization Manager:
           Value: false
         local:
           Value: false
-        map:
-          Value: true
-        uwb_beacon_0:
-          Value: true
-        uwb_beacon_1:
-          Value: true
-        uwb_beacon_2:
-          Value: true
-        uwb_beacon_3:
-          Value: true
-        uwb_beacon_4:
-          Value: true
-        uwb_beacon_5:
-          Value: true
-        uwb_beacon_6:
-          Value: true
       Marker Scale: 12
       Name: TF
       Show Arrows: false
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          global:
-            local:
-              body:
-                {}
-            uwb_beacon_0:
-              {}
-            uwb_beacon_1:
-              {}
-            uwb_beacon_2:
-              {}
-            uwb_beacon_3:
-              {}
-            uwb_beacon_4:
-              {}
-            uwb_beacon_5:
-              {}
-            uwb_beacon_6:
-              {}
+        {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -264,6 +231,41 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /ground_truth/vehicle_odom
       Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz_default_plugins/PoseWithCovariance
+      Color: 0; 0; 255
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: false
+        Position:
+          Alpha: 0.800000011920929
+          Color: 0; 255; 255
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Head Length: 1.5
+      Head Radius: 1.399999976158142
+      Name: PoseWithCovariance
+      Shaft Length: 3
+      Shaft Radius: 1
+      Shape: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /EIF_filter_descentralized_node/predicted_position
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -381,5 +383,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 960
-  X: -35
-  Y: -30
+  X: -37
+  Y: -36

@@ -27,6 +27,7 @@ class EIFFilterNode(Node):
         # Parametros necesarios para los modelos
         self.horizontal_vel = self.get_parameter('horizontal_vel').value 
         self.vertical_vel = self.get_parameter('vertical_vel').value
+        self.initial_covariance = self.get_parameter('initial_covariance').value
         self.valid_measurement_threshold = self.get_parameter('valid_measurement_threshold').value                     # Unidades: ns ! Default 10 ms 
         self.beacons_ids = self.get_parameter('beacons.ids').value 
         self.num_beacons = len(self.beacons_ids)
@@ -44,10 +45,10 @@ class EIFFilterNode(Node):
         self.R = R_noise_model(self.horizontal_vel, self.vertical_vel, 1.0 / self.filter_update_rate)                  # Ruido de proceso
 
         # Variables para la creencia de la localizacion en forma canónica
-        self.omega = np.eye(3, dtype=np.float64)                           # Matriz de información
-        self.xi    = np.array([[0],[0],[0]],dtype=np.float64)                   # Vector de información 
-        self.mu    = np.array([[0],[0],[0]],dtype=np.float64)                   # vector media del estado estimado
-        self.covariance = np.eye(3, dtype=np.float64)                       # Matriz de covarianza, calculada para visualización y calculo de mu
+        self.omega = (1.0/self.initial_covariance)*np.eye(3, dtype=np.float64)                        # Matriz de información
+        self.xi    = np.array([[0],[0],[0]],dtype=np.float64)                                       # Vector de información 
+        self.mu    = np.array([[0],[0],[0]],dtype=np.float64)                                       # vector media del estado estimado
+        self.covariance = self.initial_covariance*np.eye(3, dtype=np.float64)                       # Matriz de covarianza, calculada para visualización y calculo de mu
 
         # Variables de resultado de predicción
         self.omega_pred = np.eye(3, dtype=np.float64)                           
@@ -94,14 +95,15 @@ class EIFFilterNode(Node):
         self.predict()
         predic_time = (self.get_clock().now() - start).nanoseconds / 1e9
 
-        now = self.get_clock().now().nanoseconds        # Mismo tipo de timestamp que el mensaje de la baliza
+        start =  self.get_clock().now()
+        now = start.nanoseconds        # Mismo tipo de timestamp que el mensaje de la baliza
         z = []
         with self.lock:
             for i in range(len(self.last_measurements)):
                 if self.last_measurements[i][2] is not None:
                     if now - self.last_measurements[i][2] < self.valid_measurement_threshold:
                         z.append(self.last_measurements[i][:2]) # Filtrar medidas válidas ()
-        start =  self.get_clock().now()
+        
         if len(z) == 0:
             self.get_logger().warning("No hay medidas válidas disponibles, no es posible actualizar predicción")
         else:   
