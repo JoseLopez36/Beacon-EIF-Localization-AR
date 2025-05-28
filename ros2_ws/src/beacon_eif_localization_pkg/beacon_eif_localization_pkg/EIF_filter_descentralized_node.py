@@ -3,6 +3,8 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.guard_condition import GuardCondition
 from message_filters import ApproximateTimeSynchronizer
 import numpy as np
 from threading import Lock, Event
@@ -28,7 +30,7 @@ class EIFFilterDescentralizedNode(Node):
         # Parametros necesarios para los modelos
         self.horizontal_vel = self.get_parameter('horizontal_vel').value 
         self.vertical_vel = self.get_parameter('vertical_vel').value
-        self.valid_time_threshold = self.get_parameter('valid_measurement_threshold').value  
+        self.valid_time_threshold = self.get_parameter('valid_measurement_threshold').value 
         self.beacons_ids = self.get_parameter('beacons.ids').value 
         self.num_beacons = len(self.beacons_ids)
         self.beacons = {}
@@ -62,7 +64,6 @@ class EIFFilterDescentralizedNode(Node):
         # Variables para la gestion de mediciones
         self.lock = Lock() # Para proteger el acceso a las mediciones
         self.calculations = []
-        self.last_broadcast = 0
         self.calculations_received = 0
         self.calculations_event = Event()
 
@@ -81,7 +82,7 @@ class EIFFilterDescentralizedNode(Node):
         self.get_logger().info("Nodo de filtro EIF descentralizado iniciado")
 
     def partial_innovation_callback(self, beacon_output_msg):
-        self.get_logger().info('Resultado recivido')
+        self.get_logger().info('Resultado recibido')
         if self.calculations_event.is_set():
             self.get_logger().info('Resultado guardado')
             beacon_id = beacon_output_msg.id
@@ -92,9 +93,9 @@ class EIFFilterDescentralizedNode(Node):
             with self.lock:
                 self.calculations.append([xi_n, omega_n])
 
-            self.calculations_received += 1
-            if self.calculations_received == self.num_beacons:
-                self.calculations_event.clear()
+                self.calculations_received += 1
+                if self.calculations_received == self.num_beacons:
+                    self.calculations_event.clear()
 
             
     def publish_eif_input(self, mu, mu_pred) -> int:
@@ -122,8 +123,13 @@ class EIFFilterDescentralizedNode(Node):
         start =  self.get_clock().now()
         last_broadcast = self.publish_eif_input(self.mu, self.mu_pred)
       
-        while rclpy.ok() and self.calculations_event.is_set() and (self.get_clock().now().nanoseconds - last_broadcast) < self.valid_time_threshold:
-            rclpy.spin_once(self, timeout_sec=0.01)
+        while rclpy.ok() and self.calculations_event.is_set():
+            now = self.get_clock().now().nanoseconds
+            if now - last_broadcast > self.valid_time_threshold:
+                self.get_logger().info("Timeout alcanzado")
+                break
+            rclpy.spin_once(self, timeout_sec=0.02)
+        
         self.get_logger().info('Procesando resultados obtenidos')
         self.calculations_event.clear()
         with self.lock:
