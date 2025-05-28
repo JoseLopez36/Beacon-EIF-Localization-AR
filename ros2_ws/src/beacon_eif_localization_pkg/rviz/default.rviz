@@ -64,13 +64,47 @@ Visualization Manager:
           Value: false
         local:
           Value: false
+        map:
+          Value: true
+        uwb_beacon_0:
+          Value: true
+        uwb_beacon_1:
+          Value: true
+        uwb_beacon_2:
+          Value: true
+        uwb_beacon_3:
+          Value: true
+        uwb_beacon_4:
+          Value: true
+        uwb_beacon_5:
+          Value: true
+        uwb_beacon_6:
+          Value: true
       Marker Scale: 12
       Name: TF
       Show Arrows: false
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        map:
+          global:
+            local:
+              body:
+                {}
+            uwb_beacon_0:
+              {}
+            uwb_beacon_1:
+              {}
+            uwb_beacon_2:
+              {}
+            uwb_beacon_3:
+              {}
+            uwb_beacon_4:
+              {}
+            uwb_beacon_5:
+              {}
+            uwb_beacon_6:
+              {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -178,11 +212,11 @@ Visualization Manager:
           Value: true
         Value: true
       Enabled: true
-      Head Length: 1.5
-      Head Radius: 1.399999976158142
+      Head Length: 0.75
+      Head Radius: 0.699999988079071
       Name: PoseWithCovariance
-      Shaft Length: 3
-      Shaft Radius: 1
+      Shaft Length: 1.5
+      Shaft Radius: 0.4000000059604645
       Shape: Arrow
       Topic:
         Depth: 5
@@ -383,5 +417,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 960
-  X: -37
-  Y: -36
+  X: 960
+  Y: 0

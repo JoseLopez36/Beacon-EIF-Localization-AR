@@ -59,7 +59,7 @@ def R_noise_model(vel_xy_max, vel_z_max, dt):
     errors_max = np.array([vel_xy_max*dt, vel_xy_max*dt, vel_z_max*dt])
 
     # Varianzas al cuadrado
-    sigmas = [((e_max - e_min)/4)**2 for e_min, e_max in zip(errors_min, errors_max)]
+    sigmas = [((e_max - e_min)/4)**2 + 5.0 for e_min, e_max in zip(errors_min, errors_max)]
 
     # Matriz diagonal de covarianza del ruido de proceso
     R = np.diag(sigmas)
