@@ -68,6 +68,10 @@ namespace gz
 		{
 			nlos_soft_wall_width = _sdf->Get<double>("nlos_soft_wall_width");
 		}
+		if (_sdf->HasElement("max_db_distance"))
+		{
+			max_db_distance = _sdf->Get<double>("max_db_distance");
+		}
 
 		// Inicializar nodo ROS2
 		node_ = std::make_shared<rclcpp::Node>("uwb_beacon_node_" + beacon_model_name);
