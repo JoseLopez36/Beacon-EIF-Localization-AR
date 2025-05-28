@@ -5,7 +5,7 @@
 
 drone_control: [true, 'error']
 tf_manager: [true, 'error']
-visualization: [true, 'error']
+visualization: [false, 'error']
 EIF_filter: [true, 'info']
 EIF_filter_descentralized: [false, 'error']
 
