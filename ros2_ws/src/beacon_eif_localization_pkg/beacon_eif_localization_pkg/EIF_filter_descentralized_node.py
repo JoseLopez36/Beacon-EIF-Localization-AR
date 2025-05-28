@@ -3,12 +3,10 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.executors import SingleThreadedExecutor
-from rclpy.guard_condition import GuardCondition
-from message_filters import ApproximateTimeSynchronizer
 import numpy as np
 from threading import Lock, Event
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped 
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped , Point
+from nav_msgs.msg import Odometry
 
 # Importar el modelos
 from .EIF_models import g_function, G_jacobian, h_function_n, H_jacobian_n, R_noise_model, Q_noise_model_n
@@ -30,6 +28,7 @@ class EIFFilterDescentralizedNode(Node):
         # Parametros necesarios para los modelos
         self.horizontal_vel = self.get_parameter('horizontal_vel').value 
         self.vertical_vel = self.get_parameter('vertical_vel').value
+        self.initial_covariance = self.get_parameter('initial_covariance').value
         self.valid_time_threshold = self.get_parameter('valid_measurement_threshold').value 
         self.beacons_ids = self.get_parameter('beacons.ids').value 
         self.num_beacons = len(self.beacons_ids)
@@ -47,10 +46,11 @@ class EIFFilterDescentralizedNode(Node):
         self.R = R_noise_model(self.horizontal_vel, self.vertical_vel, 1.0 / self.filter_update_rate)                  # Ruido de proceso
 
         # Variables para la creencia de la localizacion en forma canónica
-        self.omega = np.eye(3, dtype=np.float64)                           # Matriz de información
+        self.omega = (1.0/self.initial_covariance)*np.eye(3, dtype=np.float64)                           # Matriz de información
         self.xi    = np.array([[0],[0],[0]],dtype=np.float64)                   # Vector de información 
-        self.mu    = np.array([[0],[0],[0]],dtype=np.float64)                      # vector media del estado estimado
-        self.covariance = np.eye(3, dtype=np.float64)                  
+        self.mu    = np.array([[0],[0],[0]],dtype=np.float64) 
+        self.ground_truth  = Point()               # vector media del estado estimado
+        self.covariance = self.initial_covariance*np.eye(3, dtype=np.float64)                  
 
         # Variables de resultado de predicción
         self.omega_pred = np.eye(3, dtype=np.float64)                           
@@ -60,21 +60,18 @@ class EIFFilterDescentralizedNode(Node):
         # Variables de suma para actualización
         self.omega_sum = np.zeros([3,3],dtype=np.float64)                           
         self.xi_sum    = np.array([[0],[0],[0]],dtype=np.float64)                      
-    
-        # Variables para la gestion de mediciones
-        self.lock = Lock() # Para proteger el acceso a las mediciones
-        self.calculations = []
-        self.calculations_received = 0
-        self.calculations_event = Event()
 
         # Subscriptores y publicadores
         self.predict_pub = self.create_publisher(PoseWithCovarianceStamped,f"/{self.get_name()}/predicted_position", self.num_beacons)     
         self.stat_pub = self.create_publisher(ProcessStats,f"/{self.get_name()}/process_stats",10)
 
+        self.truth_sub = self.create_subscription(Odometry,f"/ground_truth/vehicle_odom",self.ground_truth_callback, 30) 
         #if self.beacon_id != "":
+        self.beacon_innovation_map = {}
         for beacon_id in self.beacons_ids:
             self.create_subscription(EIFOutput,f"/uwb_beacon/{beacon_id}/eif_output", self.partial_innovation_callback, 10)
-        self.eif_output_pub =  self.create_publisher(EIFInput,f"eif_input",10)
+            # Initialize with empty dict - innovations will be added when received
+        self.eif_output_pub =  self.create_publisher(EIFInput,f"/uwb_beacon/eif_input",10)
             
         # Temporizador para la frecuencia de actualización
         self.timer = self.create_timer(1.0 / self.filter_update_rate, self.estimate_localization)
@@ -82,68 +79,75 @@ class EIFFilterDescentralizedNode(Node):
         self.get_logger().info("Nodo de filtro EIF descentralizado iniciado")
 
     def partial_innovation_callback(self, beacon_output_msg):
-        self.get_logger().info('Resultado recibido')
-        if self.calculations_event.is_set():
-            self.get_logger().info('Resultado guardado')
-            beacon_id = beacon_output_msg.id
+            beacon_id = beacon_output_msg.beacon_id
             xi_n = beacon_output_msg.xi
             omega_n = beacon_output_msg.omega
-            beacon_timestamp = Time.from_msg(beacon_output_msg.timestamp).nanoseconds
-
-            with self.lock:
-                self.calculations.append([xi_n, omega_n])
-
-                self.calculations_received += 1
-                if self.calculations_received == self.num_beacons:
-                    self.calculations_event.clear()
-
+            current_time = self.get_clock().now()
+            # Store innovation with timestamp
+            self.beacon_innovation_map[beacon_id] = {
+                'xi': xi_n,
+                'omega': omega_n,
+                'timestamp': current_time
+            }
             
-    def publish_eif_input(self, mu, mu_pred) -> int:
+    def publish_eif_input(self, mu, mu_pred):
         self.get_logger().info("Enviando mensaje de input")
         input_msg = EIFInput() 
-        now = self.get_clock().now()
-        input_msg.header.stamp = now.to_msg()
+        input_msg.header.stamp = self.get_clock().now().to_msg()
         input_msg.mu = mu.flatten().tolist()
         input_msg.mu_predicted = mu_pred.flatten().tolist()
 
-        self.calculations_event.set()
         self.eif_output_pub.publish(input_msg)
 
-        return now.nanoseconds
+    def clean_expired_innovations(self):
+        """Remove innovations that have exceeded the valid time threshold"""
+        current_time = self.get_clock().now()
+        expired_beacons = []
+        
+        for beacon_id, innovation_data in self.beacon_innovation_map.items():
+            if isinstance(innovation_data, dict) and 'timestamp' in innovation_data:
+                time_diff = (current_time - innovation_data['timestamp']).nanoseconds / 1e9
+                if time_diff > self.valid_time_threshold:
+                    expired_beacons.append(beacon_id)
+        
+        # Remove expired innovations
+        for beacon_id in expired_beacons:
+            self.get_logger().info(f"Removiendo innovación expirada del beacon {beacon_id} (timeout: {self.valid_time_threshold}s)")
+            del self.beacon_innovation_map[beacon_id]
+            
+        if len(expired_beacons) > 0:
+            self.get_logger().info(f"Se eliminaron {len(expired_beacons)} innovaciones expiradas")
 
     def estimate_localization(self):
         self.get_logger().info("Estimando localización...")
         start_filter = self.get_clock().now()
+        
+        # Clean expired innovations first
+        self.clean_expired_innovations()
+        
         start = self.get_clock().now()
         self.predict()
         predic_time = (self.get_clock().now() - start).nanoseconds / 1e9
 
         # Mandar infomación a las valizas para que puedan realizar los calculos
-        self.get_logger().info('Enviando petición a todas las balizad')
         start =  self.get_clock().now()
-        last_broadcast = self.publish_eif_input(self.mu, self.mu_pred)
-      
-        while rclpy.ok() and self.calculations_event.is_set():
-            now = self.get_clock().now().nanoseconds
-            if now - last_broadcast > self.valid_time_threshold:
-                self.get_logger().info("Timeout alcanzado")
-                break
-            rclpy.spin_once(self, timeout_sec=0.02)
+        self.publish_eif_input(self.mu, self.mu_pred)
+
+        # Check if we have valid beacon data (innovations with proper structure)
+        valid_beacons = {}
+        for beacon_id, innovation_data in self.beacon_innovation_map.items():
+            if isinstance(innovation_data, dict) and 'xi' in innovation_data and 'omega' in innovation_data:
+                valid_beacons[beacon_id] = innovation_data
         
-        self.get_logger().info('Procesando resultados obtenidos')
-        self.calculations_event.clear()
-        with self.lock:
-            innovation = self.calculations
-
-        with self.lock :
-            self.calculations = []
-            self.calculations_received = 0
-
-        if len(innovation) == 0:
+        self.get_logger().info(f"Beacons válidos disponibles: {len(valid_beacons)}/{len(self.beacons_ids)}")
+        
+        if len(valid_beacons) == 0:
             self.get_logger().warning("No hay medidas válidas disponibles, no es posible actualizar predicción")
+            # Use prediction as the current estimate
+            self.omega = self.omega_pred
+            self.xi = self.xi_pred
         else:   
-            self.get_logger().info(innovation)
-            xi, omega = self.update(innovation)
+            xi, omega = self.update(valid_beacons)
         update_time = (self.get_clock().now() - start).nanoseconds / 1e9
 
         try:
@@ -152,11 +156,10 @@ class EIFFilterDescentralizedNode(Node):
             self.get_logger().warning("Singular matrix, filter cannot calculate covariance")
         
         
-        with self.lock:
-            self.publish_estimation(self.xi, self.covariance) # Publicar estimación de localización
+        self.publish_estimation(self.xi, self.covariance) # Publicar estimación de localización
         filter_time = (self.get_clock().now() - start_filter).nanoseconds / 1e9
 
-        self.publish_stat(predic_time,update_time,filter_time,len(innovation),self.omega, self.xi)
+        self.publish_stat(predic_time,update_time,filter_time,len(valid_beacons),self.omega, self.xi, self.mu,self.ground_truth)
 
         return self.mu, self.omega, self.xi
 
@@ -175,15 +178,22 @@ class EIFFilterDescentralizedNode(Node):
             self.get_logger().warning("Singular matrix, filter cannot predict")
         return self.xi_pred, self.omega_pred, self.mu_pred
 
-    def update(self, innovation):
+    def update(self, innovation_map):
         # Sumatorios de la actualización de matriz y vector de información con los calculos recibidos
-        with self.lock:
-            xi_calulations = np.array(innovation[:][0])
-            omega_calculations = np.array(innovation[:][1])
-            print(xi_calulations.shape)
-            print(omega_calculations.shape)
+        if len(innovation_map) == 0:
+            # No valid measurements, return prediction values
+            return self.xi_pred, self.omega_pred
+            
+        # Extract xi and omega values from valid beacon data with new structure
+        xi_calulations = np.array([data['xi'] for data in innovation_map.values()])
+        omega_calculations = np.array([data['omega'] for data in innovation_map.values()])
+        
+        if len(xi_calulations) > 0:
             self.xi_sum = np.sum(xi_calulations,axis=0).reshape((3,1))
-            self.ome_sum_sum = np.sum(omega_calculations,axis=0).reshape((3,3))
+            self.omega_sum = np.sum(omega_calculations,axis=0).reshape((3,3))
+        else:
+            self.xi_sum = np.zeros((3,1), dtype=np.float64)
+            self.omega_sum = np.zeros((3,3), dtype=np.float64)
 
         # Actualizar la creencia de la localización
         self.omega = self.omega_pred + self.omega_sum
@@ -215,9 +225,24 @@ class EIFFilterDescentralizedNode(Node):
 
         self.predict_pub.publish(pose_msg)
 
-    def publish_stat(self,predict_time, update_time, filter_time, number_beacons, omega, xi):
+    def ground_truth_callback(self,odom_msg):
+        self.ground_truth = odom_msg.pose.pose.position
+
+
+    def publish_stat(self,predict_time, update_time, filter_time, number_beacons, omega, xi, mu, gt):
         s = ProcessStats()
         s.header.stamp = self.get_clock().now().to_msg()
+
+        #Prediccion:
+        s.predicted_position.x = mu[0][0]
+        s.predicted_position.y = mu[1][0]
+        s.predicted_position.z = mu[2][0]
+
+        #Ground_truth
+        s.ground_truth.x = gt.x
+        s.ground_truth.y = gt.y
+        s.ground_truth.z = gt.z
+
         #Tiempos de ejecucion
         s.predict_time = predict_time
         s.update_time = update_time
@@ -231,6 +256,7 @@ class EIFFilterDescentralizedNode(Node):
         s.xi = xi.flatten().tolist()
 
         self.stat_pub.publish(s)
+
 
 def main(args=None):
     rclpy.init(args=args)

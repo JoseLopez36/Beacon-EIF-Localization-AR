@@ -440,6 +440,18 @@ namespace gz
 
 	void GzUwbBeaconPlugin::eifInputCallback(const gz_uwb_beacon_msgs::msg::EIFInput::SharedPtr msg)
 	{
+		// Generar número aleatorio entre 0 y 1 para simular interferencias
+		std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+		double random_value = uniform_dist(random_generator_);
+
+		// Solo publicar si el valor aleatorio es menor que la probabilidad de recepción
+		if (random_value > beacon_params_.reception_probability)
+		{
+			RCLCPP_DEBUG(node_->get_logger(), "UWB-Beacon-Plugin: EIF Input dropped for beacon %d due to interference (probability: %.3f)",
+				beacon_params_.id, random_value);
+			return;
+		}
+
 		// Copiar medidas de la baliza bajo lock
 		BeaconMeasurements beacon_measurements;
 		{
