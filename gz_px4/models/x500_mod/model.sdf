@@ -88,7 +88,7 @@
       <update_rate>50</update_rate>
       <beacon_name>uwb_beacon_0</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>0</beacon_mode>
+      <beacon_mode>1</beacon_mode>
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
@@ -98,7 +98,7 @@
       <update_rate>50</update_rate>
       <beacon_name>uwb_beacon_1</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>0</beacon_mode>
+      <beacon_mode>1</beacon_mode>
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
@@ -108,7 +108,7 @@
       <update_rate>50</update_rate>
       <beacon_name>uwb_beacon_2</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>0</beacon_mode>
+      <beacon_mode>1</beacon_mode>
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
@@ -118,7 +118,7 @@
       <update_rate>50</update_rate>
       <beacon_name>uwb_beacon_3</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>0</beacon_mode>
+      <beacon_mode>1</beacon_mode>
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
@@ -128,7 +128,7 @@
       <update_rate>50</update_rate>
       <beacon_name>uwb_beacon_4</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>0</beacon_mode>
+      <beacon_mode>1</beacon_mode>
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
@@ -138,7 +138,7 @@
       <update_rate>50</update_rate>
       <beacon_name>uwb_beacon_5</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>0</beacon_mode>
+      <beacon_mode>1</beacon_mode>
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>
@@ -148,7 +148,7 @@
       <update_rate>50</update_rate>
       <beacon_name>uwb_beacon_6</beacon_name>
       <tag_id>0</tag_id>
-      <beacon_mode>0</beacon_mode>
+      <beacon_mode>1</beacon_mode>
       <reception_probability>0.95</reception_probability>
       <beacon_noise_std_eif>1.0</beacon_noise_std_eif>
       <nlos_soft_wall_width>1.0</nlos_soft_wall_width>

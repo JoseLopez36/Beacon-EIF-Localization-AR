@@ -7,6 +7,6 @@ drone_control: [true, 'error']
 tf_manager: [true, 'error']
 visualization: [false, 'error']
 EIF_filter: [false, 'info']
-EIF_filter_descentralized: [true, 'debug']
+EIF_filter_descentralized: [true, 'info']
 
 rosbag: true
